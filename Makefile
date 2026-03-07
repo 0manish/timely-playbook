@@ -12,11 +12,11 @@ TEMPLATED ?= 1
 INCLUDE_LOGS ?= 0
 INIT_GIT ?= 1
 
-SEED_SCRIPT := scripts/bootstrap-timely-template.sh
-TIMELY_PLAYBOOK_BIN := .bin/timely-playbook
+SEED_SCRIPT := .timely-playbook/bin/bootstrap-timely-template.sh
+TIMELY_PLAYBOOK_BIN := $(REPO_ROOT)/.timely-playbook/bin/timely-playbook
 TEMPLATE_PACKAGE_DIR := $(REPO_ROOT)/dist/timely-template
 TEMPLATE_TGZ := $(REPO_ROOT)/dist/timely-template.tgz
-TIMELY_PLAYBOOK_MODULE_DIR := $(REPO_ROOT)/cmd/timely-playbook
+TIMELY_PLAYBOOK_MODULE_DIR := $(REPO_ROOT)/.timely-core/cmd/timely-playbook
 
 define __seed_args
 	--output $(OUTPUT_DIR) \
@@ -37,31 +37,31 @@ all: compile
 compile: $(TEMPLATE_TGZ)
 
 $(TIMELY_PLAYBOOK_BIN):
-	mkdir -p "$(dir $(TIMELY_PLAYBOOK_BIN))"
-	cd "$(TIMELY_PLAYBOOK_MODULE_DIR)" && go build -o "$(REPO_ROOT)/.bin/timely-playbook" .
+	test -x "$(TIMELY_PLAYBOOK_BIN)"
 
 $(TEMPLATE_PACKAGE_DIR): $(TIMELY_PLAYBOOK_BIN)
 	rm -rf "$(TEMPLATE_PACKAGE_DIR)"
-	"$(TIMELY_PLAYBOOK_BIN)" package --output "$(TEMPLATE_PACKAGE_DIR)" --templated
+	bash "$(TIMELY_PLAYBOOK_BIN)" package --output "$(TEMPLATE_PACKAGE_DIR)" --templated
 
 $(TEMPLATE_TGZ): $(TEMPLATE_PACKAGE_DIR)
 	tar -czf "$(TEMPLATE_TGZ)" -C "$(REPO_ROOT)/dist" timely-template
 
 validate:
 	cd "$(TIMELY_PLAYBOOK_MODULE_DIR)" && go test ./...
-	python -m unittest discover -s tests -p 'test_*.py'
-	bash scripts/chub.sh validate
-	bash scripts/run-markdownlint.sh
-	bash scripts/check-doc-links.sh
+	PYTHONPATH="$(REPO_ROOT)/.timely-core${PYTHONPATH:+:$$PYTHONPATH}" \
+		python -m unittest discover -s .timely-core/tests -p 'test_*.py'
+	bash .timely-playbook/bin/chub.sh validate
+	bash .timely-playbook/bin/run-markdownlint.sh
+	bash .timely-playbook/bin/check-doc-links.sh
 
 verify: validate compile
-	bash scripts/bootstrap-smoke.sh --smoke
+	bash .timely-playbook/bin/bootstrap-smoke.sh --smoke
 
 help:
 	@echo "Build and package Timely Playbook artifacts"
 	@echo "  make                    # default target; runs compile"
 	@echo "  make compile"
-	@echo "  make validate           # Go+Python tests + chub validate + docs checks"
+	@echo "  make validate           # Go+Python tests + relocated chub/docs checks"
 	@echo "  make verify             # validate + package build + bootstrap smoke"
 	@echo "  Output:"
 	@echo "    dist/timely-template (directory)"
@@ -90,7 +90,7 @@ bootstrap-template:
 	@bash $(SEED_SCRIPT) $(__seed_args)
 
 test-smoke:
-	@bash scripts/bootstrap-smoke.sh --smoke
+	@bash .timely-playbook/bin/bootstrap-smoke.sh --smoke
 
 clean:
-	rm -rf "$(REPO_ROOT)/.bin" "$(TEMPLATE_PACKAGE_DIR)" "$(TEMPLATE_TGZ)"
+	rm -rf "$(REPO_ROOT)/.bin" "$(REPO_ROOT)/.timely-playbook/runtime/cache" "$(TEMPLATE_PACKAGE_DIR)" "$(TEMPLATE_TGZ)"

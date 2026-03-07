@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CACHE_DIR="$ROOT_DIR/.timely-playbook/runtime/cache"
+BIN_PATH="$CACHE_DIR/timely-playbook"
+mkdir -p "$CACHE_DIR"
+(cd "$ROOT_DIR/.timely-core/cmd/timely-playbook" && go build -o "$BIN_PATH" .)
+exec "$BIN_PATH" "$@"

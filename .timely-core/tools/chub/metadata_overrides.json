@@ -1,0 +1,84 @@
+{
+  ".orchestrator/STATUS.md": {
+    "description": "Human-readable snapshot of orchestrator tasks, owners, CI state, and release readiness.",
+    "tags": [
+      "status",
+      "state",
+      "dashboard"
+    ]
+  },
+  "Context-Hub-Integration.md": {
+    "tags": [
+      "context-hub",
+      "integration",
+      "chub",
+      "mcp"
+    ]
+  },
+  "Conductor-Orchestration.md": {
+    "tags": [
+      "conductor",
+      "automation",
+      "orchestration"
+    ]
+  },
+  "DFD.md": {
+    "description": "Mermaid data flow diagram covering Timely source docs, automation workflows, packaging, and seeded repositories.",
+    "tags": [
+      "diagram",
+      "data-flow",
+      "automation"
+    ]
+  },
+  "Timely-Flowgraph.md": {
+    "description": "Mermaid governance flowgraph linking Timely guardrails, trackers, automation hooks, and operational rhythms.",
+    "tags": [
+      "diagram",
+      "flowgraph",
+      "governance"
+    ]
+  },
+  "snippets/release-readiness-shared.md": {
+    "description": "Reusable shared content snippet for release readiness, validation, and packaging guidance.",
+    "tags": [
+      "snippet",
+      "shared",
+      "release-readiness"
+    ]
+  },
+  "tools/orchestrator/fullstack_prompts/01_architecture.md": {
+    "description": "Architecture-phase prompt template for Timely full-stack agent-provider runs.",
+    "tags": [
+      "architecture",
+      "prompt"
+    ]
+  },
+  "tools/orchestrator/fullstack_prompts/02_backend.md": {
+    "description": "Backend-phase prompt template for Timely full-stack agent-provider runs.",
+    "tags": [
+      "backend",
+      "prompt"
+    ]
+  },
+  "tools/orchestrator/fullstack_prompts/03_frontend.md": {
+    "description": "Frontend-phase prompt template for Timely full-stack agent-provider runs.",
+    "tags": [
+      "frontend",
+      "prompt"
+    ]
+  },
+  "tools/orchestrator/fullstack_prompts/04_integration.md": {
+    "description": "Integration-phase prompt template for Timely full-stack agent-provider runs.",
+    "tags": [
+      "integration",
+      "prompt"
+    ]
+  },
+  "tools/orchestrator/fullstack_prompts/05_backtranslation.md": {
+    "description": "Back-translation prompt template for Timely full-stack agent-provider runs.",
+    "tags": [
+      "backtranslation",
+      "prompt"
+    ]
+  }
+}

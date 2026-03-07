@@ -1,0 +1,9 @@
+owner_name: Smoke Test
+owner_email: smoke@example.com
+repo_name: smoke-project
+docs_dir: .timely-playbook/local
+log_dir: .timely-playbook/local/run-logs
+journal_path: .timely-playbook/local/timely-trackers/test-run-journal.md
+ledger_path: .timely-playbook/local/timely-trackers/agent-control-ledger.md
+backlog_path: .timely-playbook/local/timely-trackers/todo-backlog.md
+ceremony_agendas_path: .timely-playbook/local/timely-trackers/ceremony-agendas.md

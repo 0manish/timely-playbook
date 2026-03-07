@@ -1,0 +1,617 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+var commandRegistry = []string{
+	"help",
+	"init-config",
+	"package",
+	"append",
+	"run-weekly",
+	"remind",
+	"seed",
+	"migrate-layout",
+	"refresh-core",
+	"validate-core",
+}
+
+func printUsage() {
+	fmt.Println("usage: timely-playbook <command> [args]")
+	fmt.Println("commands:")
+	for _, command := range commandRegistry {
+		fmt.Println("  -", command)
+	}
+}
+
+type playbookConfig struct {
+	OwnerName           string `yaml:"owner_name"`
+	OwnerEmail          string `yaml:"owner_email"`
+	RepoName            string `yaml:"repo_name"`
+	DocsDir             string `yaml:"docs_dir"`
+	LogDir              string `yaml:"log_dir"`
+	JournalPath         string `yaml:"journal_path"`
+	LedgerPath          string `yaml:"ledger_path"`
+	BacklogPath         string `yaml:"backlog_path"`
+	CeremonyAgendasPath string `yaml:"ceremony_agendas_path"`
+}
+
+func main() {
+	root, err := os.Getwd()
+	if err != nil {
+		fatal("could not determine working directory", err)
+	}
+
+	if len(os.Args) < 2 {
+		printUsage()
+		return
+	}
+
+	command := os.Args[1]
+	if command != "help" && command != "-h" && command != "--help" && command != "package" && command != "seed" && command != "init-config" && command != "migrate-layout" && command != "refresh-core" && command != "validate-core" {
+		if err := validateCoreManifest(root); err != nil {
+			fatal("timely core is read-only protected; refresh or repair before continuing", err)
+		}
+	}
+
+	switch command {
+	case "help", "-h", "--help":
+		printUsage()
+		return
+	case "validate-core":
+		handleValidateCore(root)
+		return
+	case "init-config":
+		handleInitConfig(root, os.Args[2:])
+	case "package":
+		handlePackage(root, os.Args[2:])
+	case "append":
+		handleAppend(root, os.Args[2:])
+	case "run-weekly":
+		handleRunWeekly(root, os.Args[2:])
+	case "remind":
+		handleRemind(root, os.Args[2:])
+	case "seed":
+		handleSeed(root, os.Args[2:])
+	case "migrate-layout":
+		handleMigrateLayout(root, os.Args[2:])
+	case "refresh-core":
+		handleRefreshCore(root, os.Args[2:])
+	default:
+		fmt.Printf("unknown command: %s\n", os.Args[1])
+		fmt.Println("known commands:", strings.Join(commandRegistry, ", "))
+		os.Exit(1)
+	}
+}
+
+func handleInitConfig(root string, args []string) {
+	fs := flag.NewFlagSet("init-config", flag.ExitOnError)
+	owner := fs.String("owner", "Smoke Test", "owner name to stamp into template snapshots")
+	email := fs.String("email", "smoke@example.com", "owner email to stamp into template snapshots")
+	repo := fs.String("repo", filepath.Base(root), "repo name to stamp into template snapshots")
+	defaults := defaultConfig(root)
+	docsDir := fs.String("docs-dir", defaults.DocsDir, "docs directory root relative to repo")
+	logDir := fs.String("log-dir", defaults.LogDir, "run-logs output directory")
+	journal := fs.String("journal-path", defaults.JournalPath, "journal file path")
+	ledger := fs.String("ledger-path", defaults.LedgerPath, "ledger file path")
+	backlog := fs.String("backlog-path", defaults.BacklogPath, "backlog file path")
+	agendas := fs.String("ceremony-agendas", defaults.CeremonyAgendasPath, "ceremony agendas path")
+	if err := fs.Parse(args); err != nil {
+		fatal("failed to parse flags", err)
+	}
+
+	cfg := playbookConfig{
+		OwnerName:           *owner,
+		OwnerEmail:          *email,
+		RepoName:            *repo,
+		DocsDir:             *docsDir,
+		LogDir:              *logDir,
+		JournalPath:         *journal,
+		LedgerPath:          *ledger,
+		BacklogPath:         *backlog,
+		CeremonyAgendasPath: *agendas,
+	}
+
+	path := resolveWorkspace(root).ConfigPath
+	if err := writeConfig(path, cfg); err != nil {
+		fatal("could not write config", err)
+	}
+
+	fmt.Println("wrote", path)
+}
+
+func handlePackage(root string, args []string) {
+	fs := flag.NewFlagSet("package", flag.ExitOnError)
+	output := fs.String("output", "dist/timely-template", "output path for the template bundle")
+	templated := fs.Bool("templated", false, "keep placeholders like Smoke Test in exported files")
+	includeLogs := fs.Bool("include-logs", false, "include run-logs/ in template output")
+	if err := fs.Parse(args); err != nil {
+		fatal("failed to parse flags", err)
+	}
+
+	root, err := filepath.Abs(root)
+	if err != nil {
+		fatal("could not resolve root", err)
+	}
+
+	cfg, cfgErr := readConfig(root)
+	if cfgErr != nil {
+		cfg = defaultConfig(root)
+		if !*templated {
+			fmt.Println("warning: could not read config, placeholder values will be injected as defaults")
+		}
+	}
+
+	if *output == "" {
+		fatal("--output must be provided", nil)
+	}
+	absOutput := *output
+	if !filepath.IsAbs(absOutput) {
+		absOutput = filepath.Join(root, absOutput)
+	}
+	absOutput = filepath.Clean(absOutput)
+	relOutput := "dist/timely-template"
+	if filepath.IsAbs(*output) {
+		relOutput, _ = filepath.Rel(root, *output)
+		relOutput = filepath.ToSlash(relOutput)
+	} else {
+		relOutput = *output
+	}
+	emit := "inject"
+	if *templated {
+		emit = "keep placeholders"
+	}
+
+	if err := packageTemplate(root, absOutput, relOutput, *templated, *includeLogs, cfg); err != nil {
+		fatal("package failed", err)
+	}
+
+	fmt.Printf("packaged template bundle to %s (%s)\n", absOutput, emit)
+}
+
+func handleSeed(root string, args []string) {
+	fs := flag.NewFlagSet("seed", flag.ExitOnError)
+	output := fs.String("output", "", "destination path for the new repository")
+	templated := fs.Bool("templated", true, "keep placeholders like Smoke Test in seeded files")
+	includeLogs := fs.Bool("include-logs", false, "include run-logs/ in template output")
+	allowExisting := fs.Bool("allow-existing", false, "overwrite an existing destination directory")
+	initGit := fs.Bool("init-git", false, "run `git init` in the seeded directory")
+	owner := fs.String("owner", "", "owner name to stamp into generated .timely-playbook/config.yaml")
+	email := fs.String("email", "", "owner email to stamp into generated .timely-playbook/config.yaml")
+	repo := fs.String("repo", "", "repo name to stamp into generated .timely-playbook/config.yaml")
+	if err := fs.Parse(args); err != nil {
+		fatal("failed to parse flags", err)
+	}
+
+	if *output == "" {
+		fatal("--output is required", nil)
+	}
+
+	cfg, cfgErr := readConfig(root)
+	if cfgErr != nil {
+		cfg = defaultConfig(root)
+	}
+	if *owner != "" {
+		cfg.OwnerName = *owner
+	}
+	if *email != "" {
+		cfg.OwnerEmail = *email
+	}
+	if *repo != "" {
+		cfg.RepoName = *repo
+	}
+
+	absOutput := *output
+	if !filepath.IsAbs(absOutput) {
+		absOutput = filepath.Join(root, absOutput)
+	}
+
+	if !*allowExisting {
+		if info, err := os.Stat(absOutput); err == nil && info.IsDir() {
+			children, err := os.ReadDir(absOutput)
+			if err != nil {
+				fatal("could not inspect destination directory", err)
+			}
+			if len(children) > 0 {
+				fatal("destination already exists and is not empty; use --allow-existing", nil)
+			}
+		}
+	}
+
+	relOutput := "dist/timely-template"
+	if filepath.IsAbs(*output) {
+		relOutput, _ = filepath.Rel(root, *output)
+		relOutput = filepath.ToSlash(relOutput)
+	} else {
+		relOutput = *output
+	}
+
+	if err := packageTemplate(root, absOutput, relOutput, *templated, *includeLogs, cfg); err != nil {
+		fatal("seed failed", err)
+	}
+
+	if err := writeConfig(resolveWorkspace(absOutput).ConfigPath, configForEmission(absOutput, cfg)); err != nil {
+		fatal("could not write seeded config", err)
+	}
+
+	if *initGit {
+		git := exec.Command("git", "-C", absOutput, "init")
+		git.Stdout = os.Stdout
+		git.Stderr = os.Stderr
+		if err := git.Run(); err != nil {
+			fatal("failed to run git init", err)
+		}
+	}
+
+	fmt.Printf("seeded repository at %s (templated=%t)\n", absOutput, *templated)
+}
+
+func handleAppend(root string, args []string) {
+	if len(args) < 1 {
+		fmt.Println("usage: timely-playbook append <journal|ledger|backlog> [flags]")
+		os.Exit(1)
+	}
+
+	cfg, cfgErr := readConfig(root)
+	if cfgErr != nil {
+		cfg = defaultConfig(root)
+	}
+
+	switch args[0] {
+	case "journal":
+		fs := flag.NewFlagSet("append journal", flag.ExitOnError)
+		runID := fs.String("run-id", "", "run identifier")
+		trigger := fs.String("trigger", "Manual", "run trigger")
+		scope := fs.String("scope", "", "validation scope")
+		commands := fs.String("commands", "", "commands run")
+		result := fs.String("result", "Pass", "Pass|Fail")
+		evidence := fs.String("evidence", "", "evidence paths")
+		if err := fs.Parse(args[1:]); err != nil {
+			fatal("failed to parse flags", err)
+		}
+
+		if *runID == "" {
+			fatal("--run-id is required", nil)
+		}
+
+		row := []string{
+			*runID,
+			time.Now().Format("2006-01-02"),
+			*trigger,
+			*scope,
+			*commands,
+			*result,
+			*evidence,
+		}
+
+		header := []string{"Run ID", "Date", "Trigger", "Scope", "Command(s)", "Result", "Evidence"}
+		if err := appendMarkdownRow(filepath.Join(root, cfg.JournalPath), header, row); err != nil {
+			fatal("failed to append journal entry", err)
+		}
+		fmt.Println("appended journal entry")
+
+	case "ledger":
+		fs := flag.NewFlagSet("append ledger", flag.ExitOnError)
+		date := fs.String("date", time.Now().Format("2006-01-02"), "entry date")
+		decision := fs.String("decision", "", "decision summary")
+		context := fs.String("context", "", "context / link")
+		owner := fs.String("owner", cfg.OwnerName, "decision owner")
+		if err := fs.Parse(args[1:]); err != nil {
+			fatal("failed to parse flags", err)
+		}
+
+		if *decision == "" {
+			fatal("--decision is required", nil)
+		}
+
+		row := []string{*date, *decision, *context, *owner}
+		header := []string{"Date", "Decision", "Context / Link", "Owner"}
+		if err := appendMarkdownRow(filepath.Join(root, cfg.LedgerPath), header, row); err != nil {
+			fatal("failed to append ledger entry", err)
+		}
+		fmt.Println("appended ledger entry")
+
+	case "backlog":
+		fs := flag.NewFlagSet("append backlog", flag.ExitOnError)
+		priority := fs.String("priority", "Medium", "priority")
+		item := fs.String("item", "", "backlog item")
+		context := fs.String("context", "", "context / link")
+		owner := fs.String("owner", cfg.OwnerName, "item owner")
+		due := fs.String("due", "", "due date")
+		status := fs.String("status", "Todo", "status")
+		if err := fs.Parse(args[1:]); err != nil {
+			fatal("failed to parse flags", err)
+		}
+
+		if *item == "" {
+			fatal("--item is required", nil)
+		}
+
+		row := []string{*priority, *item, *context, *owner, *due, *status}
+		header := []string{"Priority", "Item", "Context / Link", "Owner", "Due Date", "Status"}
+		if err := appendMarkdownRow(filepath.Join(root, cfg.BacklogPath), header, row); err != nil {
+			fatal("failed to append backlog entry", err)
+		}
+		fmt.Println("appended backlog item")
+	default:
+		fmt.Println("usage: timely-playbook append <journal|ledger|backlog> [flags]")
+		os.Exit(1)
+	}
+}
+
+func handleRunWeekly(root string, args []string) {
+	fs := flag.NewFlagSet("run-weekly", flag.ExitOnError)
+	dryRun := fs.Bool("dry-run", false, "print summary without writing files")
+	if err := fs.Parse(args); err != nil {
+		fatal("failed to parse flags", err)
+	}
+
+	cfg, cfgErr := readConfig(root)
+	if cfgErr != nil {
+		cfg = defaultConfig(root)
+	}
+
+	journalPath := filepath.Join(root, cfg.JournalPath)
+	ledgerPath := filepath.Join(root, cfg.LedgerPath)
+	backlogPath := filepath.Join(root, cfg.BacklogPath)
+
+	ledgerItems, ledgerErr := countTableRows(ledgerPath)
+	backlogItems, backlogErr := countTableRows(backlogPath)
+	backlogOpen, backlogDue := 0, 0
+	if backlogErr == nil {
+		backlogRows := extractTableRows(backlogPath)
+		for _, row := range backlogRows {
+			if len(row) < 6 {
+				continue
+			}
+			if row[5] != "Done" {
+				backlogOpen++
+			}
+			if row[4] != "" {
+				backlogDue++
+			}
+		}
+	}
+
+	lines := []string{
+		"# Weekly status",
+		"",
+		fmt.Sprintf("- Date: %s", time.Now().Format("2006-01-02")),
+		fmt.Sprintf("- Ledger items: %d", ledgerItems),
+		fmt.Sprintf("- Backlog items: %d (open: %d)", backlogItems, backlogOpen),
+	}
+	if backlogDue > 0 {
+		lines = append(lines, fmt.Sprintf("- Backlog items with due date: %d", backlogDue))
+	}
+
+	if *dryRun {
+		fmt.Println(strings.Join(lines, "\n"))
+		return
+	}
+
+	summaryPath := filepath.Join(root, cfg.LogDir, time.Now().Format("20060102"), "summary.md")
+	if err := os.MkdirAll(filepath.Dir(summaryPath), 0o755); err != nil {
+		fatal("could not create log directory", err)
+	}
+	if err := os.WriteFile(summaryPath, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		fatal("could not write weekly summary", err)
+	}
+
+	scope := fmt.Sprintf("run-weekly snapshot (ledger=%d backlog=%d)", ledgerItems, backlogItems)
+	journalRow := []string{
+		time.Now().Format("2006-01-02"),
+		time.Now().Format("2006-01-02"),
+		"Manual",
+		scope,
+		"timely-playbook run-weekly",
+		"Pass",
+		summaryPath,
+	}
+	journalHeader := []string{"Run ID", "Date", "Trigger", "Scope", "Command(s)", "Result", "Evidence"}
+	if err := appendMarkdownRow(journalPath, journalHeader, journalRow); err != nil {
+		fatal("could not write weekly journal entry", err)
+	}
+
+	_ = ledgerErr
+	_ = backlogErr
+	fmt.Printf("wrote weekly summary to %s\n", summaryPath)
+	fmt.Println("appended run-weekly entry to", journalPath)
+}
+
+func handleRemind(root string, args []string) {
+	if len(args) > 0 {
+		_ = args
+	}
+	cfg, cfgErr := readConfig(root)
+	if cfgErr != nil {
+		cfg = defaultConfig(root)
+	}
+
+	agendaPath := filepath.Join(root, cfg.CeremonyAgendasPath)
+	data, err := os.ReadFile(agendaPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Printf("ceremony agendas not found at %s\n", cfg.CeremonyAgendasPath)
+			return
+		}
+		fatal("could not read ceremony agenda", err)
+	}
+	fmt.Println(string(data))
+}
+
+func isText(data []byte) bool {
+	if len(data) == 0 {
+		return true
+	}
+	if len(data) > 1024*128 {
+		data = data[:1024*128]
+	}
+	for _, b := range data {
+		if b == 0 {
+			return false
+		}
+		if b < 9 || b == 11 || b == 12 || (b > 13 && b < 32) {
+			return false
+		}
+	}
+	return true
+}
+
+func handleValidateCore(root string) {
+	if err := validateCoreManifest(root); err != nil {
+		fatal("validate-core failed", err)
+	}
+	fmt.Println("core manifest is valid")
+}
+
+func appendMarkdownRow(path string, headers, row []string) error {
+	if len(headers) == 0 {
+		return fmt.Errorf("header row is required")
+	}
+	if len(row) != len(headers) {
+		if len(row) < len(headers) {
+			pad := make([]string, len(headers)-len(row))
+			row = append(row, pad...)
+		} else {
+			row = row[:len(headers)]
+		}
+	}
+
+	escaped := make([]string, len(row))
+	for i, item := range row {
+		escaped[i] = strings.ReplaceAll(item, "|", "\\|")
+	}
+
+	newRow := rowToMarkdown(escaped)
+
+	existing, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return os.WriteFile(path, []byte(strings.Join([]string{rowToMarkdown(headers), tableSeparator(len(headers)), newRow, ""}, "\n")+"\n"), 0o644)
+		}
+		return err
+	}
+
+	lines := strings.Split(string(existing), "\n")
+	sep := -1
+	for i, l := range lines {
+		if !strings.HasPrefix(strings.TrimSpace(l), "|") {
+			continue
+		}
+		if !isTableSeparator(i+1, lines) {
+			continue
+		}
+		sep = i + 1
+		break
+	}
+	if sep == -1 {
+		aug := append([]string{rowToMarkdown(headers), tableSeparator(len(headers)), newRow, ""}, lines...)
+		return os.WriteFile(path, []byte(strings.Join(aug, "\n")), 0o644)
+	}
+
+	insertAt := sep + 1
+	for insertAt < len(lines) && isMarkdownRow(lines[insertAt]) {
+		insertAt++
+	}
+	result := make([]string, 0, len(lines)+1)
+	result = append(result, lines[:insertAt]...)
+	result = append(result, newRow)
+	result = append(result, lines[insertAt:]...)
+
+	return os.WriteFile(path, []byte(strings.Join(result, "\n")), 0o644)
+}
+
+func tableSeparator(columns int) string {
+	parts := make([]string, columns)
+	for i := range parts {
+		parts[i] = " --- "
+	}
+	return rowToMarkdown(parts)
+}
+
+func rowToMarkdown(values []string) string {
+	return "| " + strings.Join(values, " | ") + " |"
+}
+
+func isTableSeparator(idx int, lines []string) bool {
+	if idx >= len(lines) {
+		return false
+	}
+	line := strings.TrimSpace(lines[idx])
+	if !strings.HasPrefix(line, "|") {
+		return false
+	}
+	return strings.Contains(line, "---")
+}
+
+func isMarkdownRow(line string) bool {
+	trim := strings.TrimSpace(line)
+	if trim == "" {
+		return false
+	}
+	return strings.HasPrefix(trim, "|") && strings.HasSuffix(trim, "|")
+}
+
+func countTableRows(path string) (int, error) {
+	rows := extractTableRows(path)
+	return len(rows), nil
+}
+
+func extractTableRows(path string) [][]string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(string(data), "\n")
+	start := -1
+	for i := 0; i < len(lines)-1; i++ {
+		if strings.HasPrefix(strings.TrimSpace(lines[i]), "|") && isTableSeparator(i+1, lines) {
+			start = i + 2
+			break
+		}
+	}
+	if start == -1 {
+		return nil
+	}
+	var out [][]string
+	for i := start; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		if !isMarkdownRow(line) {
+			break
+		}
+		cells := parseRow(line)
+		out = append(out, cells)
+	}
+	return out
+}
+
+func parseRow(line string) []string {
+	line = strings.TrimSpace(line)
+	if strings.HasPrefix(line, "|") {
+		line = strings.TrimPrefix(line, "|")
+	}
+	if strings.HasSuffix(line, "|") {
+		line = strings.TrimSuffix(line, "|")
+	}
+	parts := strings.Split(line, "|")
+	for i, p := range parts {
+		parts[i] = strings.TrimSpace(strings.Trim(p, "\\"))
+	}
+	return parts
+}
+
+func fatal(message string, err error) {
+	if err != nil {
+		fmt.Fprintln(os.Stderr, message+":", err)
+	} else {
+		fmt.Fprintln(os.Stderr, message)
+	}
+	os.Exit(1)
+}
