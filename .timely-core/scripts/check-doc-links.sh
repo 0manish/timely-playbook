@@ -19,6 +19,7 @@ DOCS=()
 
 if [[ "$CORE_DIR" == "$ROOT" ]]; then
   DOCS=(
+    "README.md"
     "AGENTS.md"
     "AutomationPlaybook-GettingStarted.md"
     "AutonomousAgentTracking.md"
@@ -38,6 +39,7 @@ if [[ "$CORE_DIR" == "$ROOT" ]]; then
   )
 else
   DOCS=(
+    "README.md"
     ".timely-playbook/local/AGENTS.md"
     ".timely-playbook/local/SKILLS.md"
     ".timely-playbook/local/timely-trackers/agent-control-ledger.md"

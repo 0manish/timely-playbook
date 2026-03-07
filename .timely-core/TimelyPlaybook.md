@@ -200,7 +200,8 @@ bash .timely-playbook/bin/timely-playbook run-weekly
   back up the original Timely-owned files under
   `.timely-playbook/migration-backups/<timestamp>/`.
 - `timely-playbook refresh-core --source|--template-repo|--archive` — replace
-  `.timely-core/`, refresh runtime launchers, and regenerate root dispatchers.
+  `.timely-core/`, refresh runtime launchers, and regenerate the root GitHub
+  surface plus dispatchers.
 - `timely-playbook validate-core` — verify `.timely-core/manifest.json` against
   the current immutable snapshot.
 - `python .timely-playbook/bin/orchestrator.py fullstack-init-config` — create

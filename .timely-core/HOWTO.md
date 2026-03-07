@@ -16,8 +16,8 @@ orchestrator-ready scaffolding.
    This creates a relocated Timely workspace in one step. The seeded repo gets
    a read-only `.timely-core/`, an editable `.timely-playbook/local/`, a
    repo-local runtime under `.timely-playbook/runtime/`, and generated root
-   dispatchers for `AGENTS.md`, `SKILLS.md`, `.github/workflows/*.yml`, and
-   `.vscode/tasks.json`.
+   files for `README.md`, `AGENTS.md`, `SKILLS.md`,
+   `.github/workflows/*.yml`, and `.vscode/tasks.json`.
 
 2. **Finish setup:**
 

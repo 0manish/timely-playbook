@@ -8,7 +8,7 @@
 - **Milestone / Epic:** Guardrail rollout and governance bootstrap
 - **Last Updated:** 2026-03-07
 - **Primary Owner (agent or human):** Smoke Test
-- **Escalation Contact:** smoke@example.com (self-escalate; log outcome in decision log)
+- **Escalation Contact:** <smoke@example.com> (self-escalate; log outcome in decision log)
 
 ## Operating Parameters
 | Field | Value |
@@ -22,7 +22,7 @@
 ## Agent Roster
 | Agent ID | Role | Contact | Notes |
 | --- | --- | --- | --- |
-| Smoke Test | Primary operator across code and docs | smoke@example.com | Runs all cadences; single-owner escalation |
+| Smoke Test | Primary operator across code and docs | <smoke@example.com> | Runs all cadences; single-owner escalation |
 | Agent-Triage | Future optional assistant for backlog grooming | tbd | Placeholder; activate when team expands |
 
 ## Work Breakdown

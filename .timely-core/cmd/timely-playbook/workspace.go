@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -26,6 +27,8 @@ const (
 	defaultCoreDirName   = ".timely-core"
 	defaultTimelyDirName = ".timely-playbook"
 )
+
+var markdownLinkPattern = regexp.MustCompile(`\]\(([^)]+)\)`)
 
 type workspacePaths struct {
 	Root             string
@@ -302,15 +305,15 @@ func packageTemplate(root, output, relOutput string, keepPlaceholders, includeLo
 
 func placeholderReplacements(cfg playbookConfig) map[string]string {
 	return map[string]string{
-		"Smoke Test":            cfg.OwnerName,
-		"smoke@example.com":           cfg.OwnerEmail,
-		"smoke-project":             cfg.RepoName,
-		".timely-playbook/local":              cfg.DocsDir,
-		".timely-playbook/local/run-logs":               cfg.LogDir,
-		".timely-playbook/local/timely-trackers/test-run-journal.md":          cfg.JournalPath,
-		".timely-playbook/local/timely-trackers/agent-control-ledger.md":           cfg.LedgerPath,
-		".timely-playbook/local/timely-trackers/todo-backlog.md":          cfg.BacklogPath,
-		".timely-playbook/local/timely-trackers/ceremony-agendas.md": cfg.CeremonyAgendasPath,
+		"Smoke Test":                      cfg.OwnerName,
+		"smoke@example.com":               cfg.OwnerEmail,
+		"smoke-project":                   cfg.RepoName,
+		".timely-playbook/local":          cfg.DocsDir,
+		".timely-playbook/local/run-logs": cfg.LogDir,
+		".timely-playbook/local/timely-trackers/test-run-journal.md":     cfg.JournalPath,
+		".timely-playbook/local/timely-trackers/agent-control-ledger.md": cfg.LedgerPath,
+		".timely-playbook/local/timely-trackers/todo-backlog.md":         cfg.BacklogPath,
+		".timely-playbook/local/timely-trackers/ceremony-agendas.md":     cfg.CeremonyAgendasPath,
 	}
 }
 
@@ -562,8 +565,65 @@ func writeExecutable(path, content string) error {
 	return os.Chmod(path, 0o755)
 }
 
+func rootReadmeContent(root string) (string, error) {
+	workspace := resolveWorkspace(root)
+	readmePath := filepath.Join(workspace.CoreDir, "README.md")
+	data, err := os.ReadFile(readmePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "# Timely Playbook\n\nCanonical content: `.timely-core/README.md`.\n", nil
+		}
+		return "", err
+	}
+	return rewriteRootReadmeLinks(string(data)), nil
+}
+
+func rewriteRootReadmeLinks(content string) string {
+	return markdownLinkPattern.ReplaceAllStringFunc(content, func(match string) string {
+		target := markdownLinkPattern.FindStringSubmatch(match)[1]
+		rewritten := rewriteRootMarkdownTarget(target)
+		return strings.Replace(match, target, rewritten, 1)
+	})
+}
+
+func rewriteRootMarkdownTarget(target string) string {
+	if target == "" || strings.HasPrefix(target, "#") || strings.HasPrefix(target, "/") {
+		return target
+	}
+	if strings.Contains(target, "://") || strings.HasPrefix(target, "mailto:") {
+		return target
+	}
+
+	pathPart, fragment, hasFragment := strings.Cut(target, "#")
+	if strings.HasPrefix(pathPart, "../") {
+		return target
+	}
+	if strings.HasPrefix(pathPart, "./") {
+		pathPart = strings.TrimPrefix(pathPart, "./")
+	}
+	for _, prefix := range []string{".timely-core/", ".timely-playbook/", ".github/", ".vscode/", ".chub/"} {
+		if strings.HasPrefix(pathPart, prefix) {
+			return target
+		}
+	}
+	if !strings.HasSuffix(pathPart, ".md") {
+		return target
+	}
+
+	rewritten := filepath.ToSlash(filepath.Join(defaultCoreDirName, filepath.FromSlash(pathPart)))
+	if hasFragment {
+		return rewritten + "#" + fragment
+	}
+	return rewritten
+}
+
 func writeRootStubs(root string) error {
+	rootReadme, err := rootReadmeContent(root)
+	if err != nil {
+		return err
+	}
 	stubs := map[string]string{
+		filepath.Join(root, "README.md"): rootReadme,
 		filepath.Join(root, "AGENTS.md"): "# Timely Playbook governance stub\n\nCanonical content: `.timely-playbook/local/AGENTS.md`.\n",
 		filepath.Join(root, "SKILLS.md"): "# Timely Playbook skill registry stub\n\nCanonical content: `.timely-playbook/local/SKILLS.md`.\n",
 	}
@@ -993,7 +1053,7 @@ func refreshCore(root, sourceRoot string, cfg playbookConfig) error {
 	cfg = configForEmission(root, cfg)
 	replacements := placeholderReplacements(cfg)
 
-	for _, path := range []string{workspace.CoreDir, workspace.RuntimeDir, workspace.BinDir, filepath.Join(root, ".github"), filepath.Join(root, ".vscode"), filepath.Join(root, "AGENTS.md"), filepath.Join(root, "SKILLS.md")} {
+	for _, path := range []string{workspace.CoreDir, workspace.RuntimeDir, workspace.BinDir, filepath.Join(root, ".github"), filepath.Join(root, ".vscode"), filepath.Join(root, "README.md"), filepath.Join(root, "AGENTS.md"), filepath.Join(root, "SKILLS.md")} {
 		if err := os.RemoveAll(path); err != nil {
 			return err
 		}

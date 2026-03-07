@@ -125,6 +125,7 @@ func TestPackageTemplatePreservesBootstrapAssetsAndSupportsInjectedPackaging(t *
 
 	writeTestFile(t, root, "AGENTS.md", "Owner Smoke Test\n")
 	writeTestFile(t, root, "SKILLS.md", "# Skills\n")
+	writeTestFile(t, root, "README.md", "# Timely Playbook\n\n- [Guide](TimelyPlaybook.md)\n- [How-to](HOWTO.md)\n")
 	writeTestFile(t, root, "package.json", "{\"name\":\"demo\"}\n")
 	writeTestFile(t, root, "package-lock.json", "{}\n")
 	writeTestFile(t, root, ".node-version", "22.22.0\n")
@@ -174,6 +175,7 @@ func TestPackageTemplatePreservesBootstrapAssetsAndSupportsInjectedPackaging(t *
 		".timely-playbook/runtime/package-lock.json",
 		".timely-playbook/config.yaml",
 		".timely-core/manifest.json",
+		"README.md",
 		"AGENTS.md",
 		"SKILLS.md",
 	} {
@@ -188,6 +190,17 @@ func TestPackageTemplatePreservesBootstrapAssetsAndSupportsInjectedPackaging(t *
 	}
 	if !strings.Contains(string(templatedAgents), "Smoke Test") {
 		t.Fatalf("expected placeholders to remain in templated package, got: %s", templatedAgents)
+	}
+
+	rootReadme, err := os.ReadFile(filepath.Join(templatedOutput, "README.md"))
+	if err != nil {
+		t.Fatalf("read generated root README.md: %v", err)
+	}
+	if !strings.Contains(string(rootReadme), "# Timely Playbook") {
+		t.Fatalf("expected root README title, got:\n%s", rootReadme)
+	}
+	if !strings.Contains(string(rootReadme), "(.timely-core/TimelyPlaybook.md)") {
+		t.Fatalf("expected root README links to point at .timely-core content, got:\n%s", rootReadme)
 	}
 
 	for _, relative := range []string{
@@ -309,6 +322,7 @@ func TestPackageTemplateFromRelocatedSourceGeneratesRootDispatchers(t *testing.T
 	writeTestFile(t, root, ".timely-core/scripts/check-doc-links.sh", "#!/usr/bin/env bash\n")
 	writeTestFile(t, root, ".timely-core/scripts/install-agent-skill.sh", "#!/usr/bin/env bash\n")
 	writeTestFile(t, root, ".timely-core/scripts/install-codex-skill.sh", "#!/usr/bin/env bash\n")
+	writeTestFile(t, root, ".timely-core/README.md", "# Timely Playbook\n\n- [Guide](TimelyPlaybook.md)\n")
 	writeTestFile(t, root, ".timely-playbook/local/AGENTS.md", "# Local guardrail\n")
 	writeTestFile(t, root, ".timely-playbook/local/SKILLS.md", "# Local skills\n")
 	writeTestFile(t, root, ".timely-playbook/local/.orchestrator/ownership.yaml", "owners:\n  - docs\n")
@@ -364,6 +378,14 @@ func TestPackageTemplateFromRelocatedSourceGeneratesRootDispatchers(t *testing.T
 	}
 	if !strings.Contains(rootCIText, "bash .timely-playbook/bin/bootstrap-smoke.sh --smoke") {
 		t.Fatalf("expected relocated smoke launcher in generated workflow, got:\n%s", rootCIText)
+	}
+
+	rootReadme, err := os.ReadFile(filepath.Join(output, "README.md"))
+	if err != nil {
+		t.Fatalf("read root README: %v", err)
+	}
+	if !strings.Contains(string(rootReadme), "(.timely-core/TimelyPlaybook.md)") {
+		t.Fatalf("expected generated root README to rewrite core doc links, got:\n%s", rootReadme)
 	}
 
 	if _, err := os.Stat(filepath.Join(output, ".timely-playbook", "local", ".vscode", "tasks.json")); err != nil {

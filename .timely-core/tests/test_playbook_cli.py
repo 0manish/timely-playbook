@@ -42,6 +42,7 @@ class PlaybookPackagingTests(unittest.TestCase):
         self.assertTrue((template_dir / ".timely-playbook" / "bin" / "bootstrap-timely-template.sh").exists())
         self.assertTrue((template_dir / ".timely-core" / "cmd" / "timely-playbook" / "main.go").exists())
         self.assertTrue((template_dir / ".timely-playbook" / "local" / "SKILLS.md").exists())
+        self.assertTrue((template_dir / "README.md").exists())
 
         seeded_dir = self.workspace / "seeded"
         self.run_cmd(
@@ -64,6 +65,7 @@ class PlaybookPackagingTests(unittest.TestCase):
 
         self.assertTrue((seeded_dir / "AGENTS.md").exists())
         self.assertTrue((seeded_dir / "SKILLS.md").exists())
+        self.assertTrue((seeded_dir / "README.md").exists())
         self.assertTrue((seeded_dir / ".timely-playbook" / "config.yaml").exists())
         self.assertTrue((seeded_dir / ".timely-core" / "manifest.json").exists())
         self.assertTrue((seeded_dir / ".timely-playbook" / "bin" / "chub.sh").exists())
@@ -82,6 +84,9 @@ class PlaybookPackagingTests(unittest.TestCase):
         self.assertIn("repo_name: demo-repo", config_text)
         self.assertIn(".timely-playbook/local/timely-trackers/test-run-journal.md", config_text)
 
+        root_readme = (seeded_dir / "README.md").read_text(encoding="utf-8")
+        self.assertIn(".timely-core/TimelyPlaybook.md", root_readme)
+
     def test_packaged_template_keeps_placeholders_and_version_files(self) -> None:
         bin_path = self.workspace / "timely-playbook"
         self.run_cmd("go", "build", "-o", str(bin_path), ".", cwd=self.repo_root / ".timely-core" / "cmd" / "timely-playbook")
@@ -96,6 +101,7 @@ class PlaybookPackagingTests(unittest.TestCase):
         self.assertTrue((template_dir / ".timely-playbook" / "bin" / "install-codex-skill.sh").exists())
         self.assertTrue((template_dir / ".timely-playbook" / "local" / "skills" / "chub-context-hub" / "SKILL.md").exists())
         self.assertTrue((template_dir / ".timely-playbook" / "local" / "skills" / "chub-context-hub" / "agents" / "openai.yaml").exists())
+        self.assertTrue((template_dir / "README.md").exists())
         self.assertFalse((template_dir / "run-logs").exists())
 
         agents_text = (template_dir / ".timely-playbook" / "local" / "AGENTS.md").read_text(encoding="utf-8")
@@ -115,6 +121,7 @@ class PlaybookPackagingTests(unittest.TestCase):
         self.assertTrue((extracted / ".timely-playbook" / "runtime" / ".nvmrc").exists())
         self.assertTrue((extracted / ".timely-core" / "cmd" / "timely-playbook" / "main.go").exists())
         self.assertTrue((extracted / ".timely-playbook" / "local" / "skills" / "chub-context-hub" / "SKILL.md").exists())
+        self.assertTrue((extracted / "README.md").exists())
         self.assertFalse((extracted / "run-logs").exists())
 
     def test_context_hub_skill_installer_copies_repo_skill_bundle(self) -> None:

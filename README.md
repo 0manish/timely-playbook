@@ -102,10 +102,10 @@ bash .timely-playbook/bin/timely-playbook refresh-core --source /path/to/timely-
 
 ## References
 
-- [TimelyPlaybook.md](TimelyPlaybook.md)
-- [AutomationPlaybook-GettingStarted.md](AutomationPlaybook-GettingStarted.md)
-- [HOWTO.md](HOWTO.md) — Step-by-step instructions for starting a new project
+- [TimelyPlaybook.md](.timely-core/TimelyPlaybook.md)
+- [AutomationPlaybook-GettingStarted.md](.timely-core/AutomationPlaybook-GettingStarted.md)
+- [HOWTO.md](.timely-core/HOWTO.md) — Step-by-step instructions for starting a new project
   from the Timely template, including clean-machine bootstrap, smoke checks,
   tailoring, and validation after seeding.
-- [Timely-Governance-Index.md](Timely-Governance-Index.md)
-- [Context-Hub-Integration.md](Context-Hub-Integration.md)
+- [Timely-Governance-Index.md](.timely-core/Timely-Governance-Index.md)
+- [Context-Hub-Integration.md](.timely-core/Context-Hub-Integration.md)
