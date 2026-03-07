@@ -126,6 +126,7 @@ func TestPackageTemplatePreservesBootstrapAssetsAndSupportsInjectedPackaging(t *
 	writeTestFile(t, root, "AGENTS.md", "Owner Smoke Test\n")
 	writeTestFile(t, root, "SKILLS.md", "# Skills\n")
 	writeTestFile(t, root, "README.md", "# Timely Playbook\n\n- [Guide](TimelyPlaybook.md)\n- [How-to](HOWTO.md)\n")
+	writeTestFile(t, root, ".gitignore", ".chub/\nnode_modules/\n")
 	writeTestFile(t, root, "package.json", "{\"name\":\"demo\"}\n")
 	writeTestFile(t, root, "package-lock.json", "{}\n")
 	writeTestFile(t, root, ".node-version", "22.22.0\n")
@@ -175,6 +176,7 @@ func TestPackageTemplatePreservesBootstrapAssetsAndSupportsInjectedPackaging(t *
 		".timely-playbook/runtime/package-lock.json",
 		".timely-playbook/config.yaml",
 		".timely-core/manifest.json",
+		".gitignore",
 		"README.md",
 		"AGENTS.md",
 		"SKILLS.md",
@@ -323,6 +325,7 @@ func TestPackageTemplateFromRelocatedSourceGeneratesRootDispatchers(t *testing.T
 	writeTestFile(t, root, ".timely-core/scripts/install-agent-skill.sh", "#!/usr/bin/env bash\n")
 	writeTestFile(t, root, ".timely-core/scripts/install-codex-skill.sh", "#!/usr/bin/env bash\n")
 	writeTestFile(t, root, ".timely-core/README.md", "# Timely Playbook\n\n- [Guide](TimelyPlaybook.md)\n")
+	writeTestFile(t, root, ".gitignore", ".chub/\nnode_modules/\n")
 	writeTestFile(t, root, ".timely-playbook/local/AGENTS.md", "# Local guardrail\n")
 	writeTestFile(t, root, ".timely-playbook/local/SKILLS.md", "# Local skills\n")
 	writeTestFile(t, root, ".timely-playbook/local/.orchestrator/ownership.yaml", "owners:\n  - docs\n")
@@ -388,8 +391,99 @@ func TestPackageTemplateFromRelocatedSourceGeneratesRootDispatchers(t *testing.T
 		t.Fatalf("expected generated root README to rewrite core doc links, got:\n%s", rootReadme)
 	}
 
+	rootGitignore, err := os.ReadFile(filepath.Join(output, ".gitignore"))
+	if err != nil {
+		t.Fatalf("read root .gitignore: %v", err)
+	}
+	if !strings.Contains(string(rootGitignore), ".chub/") {
+		t.Fatalf("expected root .gitignore to be copied into packaged output, got:\n%s", rootGitignore)
+	}
+
 	if _, err := os.Stat(filepath.Join(output, ".timely-playbook", "local", ".vscode", "tasks.json")); err != nil {
 		t.Fatalf("expected canonical local task file to be packaged: %v", err)
+	}
+}
+
+func TestInstallRuntimeAndPrepareChubRunsDefaultSetup(t *testing.T) {
+	root := t.TempDir()
+	npmLog := filepath.Join(root, "npm.log")
+	chubLog := filepath.Join(root, "chub.log")
+
+	writeTestFile(t, root, ".timely-playbook/runtime/package.json", "{\"name\":\"demo\"}\n")
+	writeTestFile(t, root, ".timely-playbook/bin/chub.sh", strings.TrimSpace(`
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" > "__CHUB_LOG__"
+mkdir -p "__CHUB_DIST__"
+touch "__CHUB_DIST__/.built"
+`)+"\n")
+	if err := os.Chmod(filepath.Join(root, ".timely-playbook", "bin", "chub.sh"), 0o755); err != nil {
+		t.Fatalf("chmod chub wrapper: %v", err)
+	}
+
+	fakeBin := filepath.Join(root, "fake-bin")
+	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
+		t.Fatalf("mkdir fake-bin: %v", err)
+	}
+	npmScript := strings.NewReplacer(
+		"__NPM_LOG__", npmLog,
+		"__RUNTIME_DIR__", filepath.Join(root, ".timely-playbook", "runtime"),
+	).Replace(strings.TrimSpace(`
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" > "__NPM_LOG__"
+mkdir -p "__RUNTIME_DIR__/node_modules/.bin"
+touch "__RUNTIME_DIR__/node_modules/.bin/chub"
+chmod +x "__RUNTIME_DIR__/node_modules/.bin/chub"
+`) + "\n")
+	writeTestFile(t, root, "fake-bin/npm", npmScript)
+	if err := os.Chmod(filepath.Join(fakeBin, "npm"), 0o755); err != nil {
+		t.Fatalf("chmod fake npm: %v", err)
+	}
+
+	chubScript := strings.NewReplacer(
+		"__CHUB_LOG__", chubLog,
+		"__CHUB_DIST__", filepath.Join(root, ".chub", "timely-dist"),
+	).Replace(strings.TrimSpace(`
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" > "__CHUB_LOG__"
+mkdir -p "__CHUB_DIST__"
+touch "__CHUB_DIST__/.built"
+`) + "\n")
+	if err := os.WriteFile(filepath.Join(root, ".timely-playbook", "bin", "chub.sh"), []byte(chubScript), 0o755); err != nil {
+		t.Fatalf("rewrite chub wrapper: %v", err)
+	}
+
+	originalPath := os.Getenv("PATH")
+	if err := os.Setenv("PATH", fakeBin+string(os.PathListSeparator)+originalPath); err != nil {
+		t.Fatalf("set PATH: %v", err)
+	}
+	defer func() {
+		_ = os.Setenv("PATH", originalPath)
+	}()
+
+	if err := installRuntimeAndPrepareChub(root); err != nil {
+		t.Fatalf("installRuntimeAndPrepareChub failed: %v", err)
+	}
+
+	npmArgs, err := os.ReadFile(npmLog)
+	if err != nil {
+		t.Fatalf("read npm log: %v", err)
+	}
+	if !strings.Contains(string(npmArgs), "ci --prefix "+filepath.Join(root, ".timely-playbook", "runtime")) {
+		t.Fatalf("expected npm ci against the relocated runtime, got:\n%s", npmArgs)
+	}
+
+	chubArgs, err := os.ReadFile(chubLog)
+	if err != nil {
+		t.Fatalf("read chub log: %v", err)
+	}
+	if strings.TrimSpace(string(chubArgs)) != "build" {
+		t.Fatalf("expected initial chub build, got:\n%s", chubArgs)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".chub", "timely-dist", ".built")); err != nil {
+		t.Fatalf("expected chub dist marker after default setup: %v", err)
 	}
 }
 

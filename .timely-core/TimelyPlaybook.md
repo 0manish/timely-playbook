@@ -45,8 +45,9 @@
 - `npm 10.x`
 - Git and Bash
 
-Install the pinned runtime dependencies before using Context Hub or docs
-wrappers in a seeded repo:
+Fresh seeds preinstall the pinned runtime dependencies and prepare `.chub/` by
+default. Re-run the install only if the seeded runtime dependencies were
+cleared:
 
 ```bash
 npm ci --prefix .timely-playbook/runtime
@@ -195,13 +196,15 @@ bash .timely-playbook/bin/timely-playbook run-weekly
 - `timely-playbook package --output dist/timely-template [--templated]` — export
   the template bundle for reuse.
 - `timely-playbook seed` — create a new repo from the current template in one
-  command.
+  command and preinstall the repo-local runtime plus `.chub/` state by default.
 - `timely-playbook migrate-layout` — relocate a legacy Timely repo in place and
   back up the original Timely-owned files under
-  `.timely-playbook/migration-backups/<timestamp>/`.
+  `.timely-playbook/migration-backups/<timestamp>/`. The default migration path
+  also reinstalls the repo-local runtime and prepares `.chub/`.
 - `timely-playbook refresh-core --source|--template-repo|--archive` — replace
   `.timely-core/`, refresh runtime launchers, and regenerate the root GitHub
-  surface plus dispatchers.
+  surface plus dispatchers. The default refresh path also reinstalls the
+  repo-local runtime and prepares `.chub/`.
 - `timely-playbook validate-core` — verify `.timely-core/manifest.json` against
   the current immutable snapshot.
 - `python .timely-playbook/bin/orchestrator.py fullstack-init-config` — create

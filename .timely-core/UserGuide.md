@@ -66,6 +66,9 @@ timely-playbook seed \
   --repo "aurora"
 ```
 
+This default seed path also installs `.timely-playbook/runtime/node_modules`
+and prepares `.chub/` so Context Hub is ready immediately.
+
 ## Packaging and publishing
 - Run `make compile` after source changes so `dist/timely-template` matches the
   repository root.

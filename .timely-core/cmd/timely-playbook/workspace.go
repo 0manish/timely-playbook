@@ -291,6 +291,9 @@ func packageTemplate(root, output, relOutput string, keepPlaceholders, includeLo
 	if err := writeRootStubs(output); err != nil {
 		return err
 	}
+	if err := copyRootSupportFiles(source, output); err != nil {
+		return err
+	}
 	if err := writeRootWorkflowDispatchers(source, output); err != nil {
 		return err
 	}
@@ -399,6 +402,15 @@ func copyRuntimeFiles(source sourceLayout, outputRuntime string, keepPlaceholder
 			sourceBase = source.RuntimeRoot
 		}
 		if err := copySelectedPath(sourceBase, outputRuntime, rel, keepPlaceholders, replacements); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyRootSupportFiles(source sourceLayout, outputRoot string) error {
+	for _, rel := range []string{".gitignore"} {
+		if err := copySelectedPath(source.Root, outputRoot, rel, true, nil); err != nil {
 			return err
 		}
 	}
@@ -563,6 +575,36 @@ func writeExecutable(path, content string) error {
 		return err
 	}
 	return os.Chmod(path, 0o755)
+}
+
+func installRuntimeAndPrepareChub(root string) error {
+	workspace := resolveWorkspace(root)
+	if _, err := exec.LookPath("npm"); err != nil {
+		return fmt.Errorf("npm is required to preinstall the repo-local runtime: %w", err)
+	}
+	if _, err := exec.LookPath("python"); err != nil {
+		return fmt.Errorf("python is required to prepare Context Hub: %w", err)
+	}
+
+	fmt.Printf("installing Timely runtime dependencies in %s\n", workspace.RuntimeDir)
+	npm := exec.Command("npm", "ci", "--prefix", workspace.RuntimeDir)
+	npm.Dir = root
+	npm.Stdout = os.Stdout
+	npm.Stderr = os.Stderr
+	if err := npm.Run(); err != nil {
+		return fmt.Errorf("npm ci failed: %w", err)
+	}
+
+	fmt.Printf("preparing local Context Hub state in %s\n", workspace.ChubDir)
+	chub := exec.Command("bash", filepath.Join(workspace.BinDir, "chub.sh"), "build")
+	chub.Dir = root
+	chub.Stdout = os.Stdout
+	chub.Stderr = os.Stderr
+	chub.Env = os.Environ()
+	if err := chub.Run(); err != nil {
+		return fmt.Errorf("chub build failed: %w", err)
+	}
+	return nil
 }
 
 func rootReadmeContent(root string) (string, error) {
@@ -920,6 +962,7 @@ func handleRefreshCore(root string, args []string) {
 	repoURL := fs.String("template-repo", "", "remote timely-playbook repo URL")
 	archive := fs.String("archive", "", "path to a packaged timely-playbook archive")
 	branch := fs.String("branch", "main", "branch to clone when --template-repo is used")
+	skipRuntimeSetup := fs.Bool("skip-runtime-setup", false, "skip the default npm install and initial chub build after refreshing the repo")
 	if err := fs.Parse(args); err != nil {
 		fatal("failed to parse flags", err)
 	}
@@ -937,6 +980,11 @@ func handleRefreshCore(root string, args []string) {
 
 	if err := refreshCore(root, sourceRoot, cfg); err != nil {
 		fatal("refresh-core failed", err)
+	}
+	if !*skipRuntimeSetup {
+		if err := installRuntimeAndPrepareChub(root); err != nil {
+			fatal("failed to prepare the repo-local runtime and Context Hub", err)
+		}
 	}
 	fmt.Printf("refreshed Timely core from %s\n", sourceRoot)
 }
@@ -1089,6 +1137,7 @@ func refreshCore(root, sourceRoot string, cfg playbookConfig) error {
 func handleMigrateLayout(root string, args []string) {
 	fs := flag.NewFlagSet("migrate-layout", flag.ExitOnError)
 	force := fs.Bool("force", false, "allow migration when the destination already has relocated Timely directories")
+	skipRuntimeSetup := fs.Bool("skip-runtime-setup", false, "skip the default npm install and initial chub build after migrating the repo")
 	if err := fs.Parse(args); err != nil {
 		fatal("failed to parse flags", err)
 	}
@@ -1104,6 +1153,11 @@ func handleMigrateLayout(root string, args []string) {
 	}
 	if err := migrateLayout(root, cfg); err != nil {
 		fatal("migrate-layout failed", err)
+	}
+	if !*skipRuntimeSetup {
+		if err := installRuntimeAndPrepareChub(root); err != nil {
+			fatal("failed to prepare the repo-local runtime and Context Hub", err)
+		}
 	}
 	fmt.Printf("migrated Timely layout under %s and %s\n", workspace.CoreDir, workspace.TimelyDir)
 }

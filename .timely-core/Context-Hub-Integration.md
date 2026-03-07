@@ -25,7 +25,9 @@
 - `npm 10.x`
 - Python `3.11+`
 
-Install the pinned dependency set from the repository root:
+Fresh Timely seeds preinstall the pinned dependency set and prepare `.chub/` by
+default. Re-run the install from the repository root only if the runtime
+dependencies were cleared:
 
 ```bash
 npm ci --prefix .timely-playbook/runtime
@@ -190,7 +192,9 @@ bash .timely-playbook/bin/install-agent-skill.sh chub-context-hub --dest /path/t
 
 ## Validation workflow
 
-Run the local checks after changing mirror logic or mirrored docs:
+Run the local checks after changing mirror logic or mirrored docs. Re-run
+`npm ci --prefix .timely-playbook/runtime` first only if the local runtime was
+cleared or needs to be refreshed:
 
 ```bash
 npm ci --prefix .timely-playbook/runtime

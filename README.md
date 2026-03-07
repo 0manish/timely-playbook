@@ -37,6 +37,9 @@ This creates a relocated Timely scaffold:
 - `.timely-playbook/runtime/` for repo-local runtime dependencies
 - `.chub/` for generated Context Hub state
 
+The default seed path also runs `npm ci --prefix .timely-playbook/runtime` and
+prebuilds the local `.chub/` mirror so Context Hub is ready immediately.
+
 ### 3) Initialize configuration
 
 ```bash
@@ -50,7 +53,6 @@ bash .timely-playbook/bin/timely-playbook init-config \
 ### 4) Validate and verify installability
 
 ```bash
-npm ci --prefix .timely-playbook/runtime
 go test ./.timely-core/cmd/timely-playbook/...
 python -m unittest discover -s .timely-core/tests -p 'test_*.py'
 bash .timely-playbook/bin/chub.sh validate
@@ -59,7 +61,8 @@ bash .timely-playbook/bin/check-doc-links.sh
 ```
 
 Template maintainers can still use `make validate` and `make verify` from the
-Timely source repository.
+Timely source repository. Re-run `npm ci --prefix .timely-playbook/runtime`
+only if you clear the seeded runtime dependencies.
 
 ### 5) Start operating
 
@@ -69,8 +72,9 @@ Timely source repository.
 - `bash .timely-playbook/bin/chub.sh validate`
 - `bash .timely-playbook/bin/install-agent-skill.sh chub-context-hub`
 
-Context Hub is on-demand. It does not run silently in the background. Use
-`bash .timely-playbook/bin/chub.sh ...` for CLI access or
+Context Hub is prebuilt during seed by default, and then stays on-demand. It
+does not run silently in the background. Use `bash .timely-playbook/bin/chub.sh
+...` for CLI access or
 `bash .timely-playbook/bin/chub-mcp.sh` to start the MCP server; those wrappers
 regenerate the Timely mirror and build `.chub/` automatically when invoked.
 

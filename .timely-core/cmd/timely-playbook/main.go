@@ -183,6 +183,7 @@ func handleSeed(root string, args []string) {
 	includeLogs := fs.Bool("include-logs", false, "include run-logs/ in template output")
 	allowExisting := fs.Bool("allow-existing", false, "overwrite an existing destination directory")
 	initGit := fs.Bool("init-git", false, "run `git init` in the seeded directory")
+	skipRuntimeSetup := fs.Bool("skip-runtime-setup", false, "skip the default npm install and initial chub build in the seeded directory")
 	owner := fs.String("owner", "", "owner name to stamp into generated .timely-playbook/config.yaml")
 	email := fs.String("email", "", "owner email to stamp into generated .timely-playbook/config.yaml")
 	repo := fs.String("repo", "", "repo name to stamp into generated .timely-playbook/config.yaml")
@@ -247,6 +248,12 @@ func handleSeed(root string, args []string) {
 		git.Stderr = os.Stderr
 		if err := git.Run(); err != nil {
 			fatal("failed to run git init", err)
+		}
+	}
+
+	if !*skipRuntimeSetup {
+		if err := installRuntimeAndPrepareChub(absOutput); err != nil {
+			fatal("failed to prepare the repo-local runtime and Context Hub", err)
 		}
 	}
 

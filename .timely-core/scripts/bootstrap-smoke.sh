@@ -32,6 +32,16 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm not found; install npm to run bootstrap smoke test"
+  exit 1
+fi
+
+if ! command -v python >/dev/null 2>&1; then
+  echo "python not found; install python to run bootstrap smoke test"
+  exit 1
+fi
+
 if [[ "${run_smoke}" != "true" ]]; then
   echo "smoke check disabled; rerun with --smoke"
   exit 0
@@ -76,6 +86,11 @@ if [ ! -f "${OUTPUT_DIR}/.timely-playbook/runtime/package.json" ]; then
   exit 1
 fi
 
+if [ ! -x "${OUTPUT_DIR}/.timely-playbook/runtime/node_modules/.bin/chub" ]; then
+  echo "smoke failed: chub runtime dependency was not preinstalled"
+  exit 1
+fi
+
 if [ ! -f "${OUTPUT_DIR}/.timely-playbook/bin/chub.sh" ]; then
   echo "smoke failed: chub wrapper missing"
   exit 1
@@ -113,6 +128,21 @@ fi
 
 if [ ! -f "${OUTPUT_DIR}/.timely-playbook/config.yaml" ]; then
   echo "smoke failed: relocated config missing"
+  exit 1
+fi
+
+if [ ! -f "${OUTPUT_DIR}/.chub/config.yaml" ]; then
+  echo "smoke failed: chub config was not prepared by default"
+  exit 1
+fi
+
+if [ ! -f "${OUTPUT_DIR}/.chub/timely-dist/.metadata.json" ] && [ ! -d "${OUTPUT_DIR}/.chub/timely-dist" ]; then
+  echo "smoke failed: chub dist was not built by default"
+  exit 1
+fi
+
+if [ ! -f "${OUTPUT_DIR}/.gitignore" ]; then
+  echo "smoke failed: root .gitignore missing"
   exit 1
 fi
 

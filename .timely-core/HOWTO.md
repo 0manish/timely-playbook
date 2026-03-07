@@ -17,13 +17,13 @@ orchestrator-ready scaffolding.
    a read-only `.timely-core/`, an editable `.timely-playbook/local/`, a
    repo-local runtime under `.timely-playbook/runtime/`, and generated root
    files for `README.md`, `AGENTS.md`, `SKILLS.md`,
-   `.github/workflows/*.yml`, and `.vscode/tasks.json`.
+   `.github/workflows/*.yml`, and `.vscode/tasks.json`. It also installs the
+   repo-local runtime dependencies and prepares `.chub/` by default.
 
 2. **Finish setup:**
 
    ```bash
    cd ~/projects/aurora
-   npm ci --prefix .timely-playbook/runtime
    python .timely-playbook/bin/orchestrator.py update-status
    ```
 
@@ -35,7 +35,7 @@ orchestrator-ready scaffolding.
 
 ## One-shot bootstrap on a clean machine
 
-From any host with `git` and `go`:
+From any host with `git`, `go`, `npm`, and `python`:
 
 ```bash
 git clone https://github.com/<org>/<timely-playbook-repo>.git ~/timely-playbook
@@ -109,13 +109,15 @@ Run the standard checks after seeding and before opening the repo to other
 contributors:
 
 ```bash
-npm ci --prefix .timely-playbook/runtime
 go test ./.timely-core/cmd/timely-playbook/...
 python -m unittest discover -s .timely-core/tests -p 'test_*.py'
 bash .timely-playbook/bin/run-markdownlint.sh
 bash .timely-playbook/bin/check-doc-links.sh
 bash .timely-playbook/bin/chub.sh validate
 ```
+
+Re-run `npm ci --prefix .timely-playbook/runtime` only if the seeded runtime
+dependencies were cleared or need to be refreshed.
 
 The `chub` wrappers build the local mirror automatically when invoked, so there
 is no separate daemon to start unless you specifically want the MCP server via

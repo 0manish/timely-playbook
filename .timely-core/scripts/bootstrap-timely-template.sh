@@ -10,14 +10,14 @@ Usage:
     --owner "Your Name" \
     --email "you@example.com" \
     --repo "new-repo-name" \
-    [--branch main] [--templated | --inject] [--include-logs] [--init-git]
+    [--branch main] [--templated | --inject] [--include-logs] [--init-git] [--skip-runtime-setup]
 
   bootstrap-timely-template.sh --template-repo https://github.com/<org>/<repo>.git \
     --output /path/to/new-repo \
     --owner "Your Name" \
     --email "you@example.com" \
     --repo "new-repo-name" \
-    [--branch main] [--templated | --inject] [--include-logs] [--init-git]
+    [--branch main] [--templated | --inject] [--include-logs] [--init-git] [--skip-runtime-setup]
 
 Options:
   --source            Local path to this timely-playbook checkout.
@@ -31,6 +31,7 @@ Options:
   --inject            Inject local values instead of placeholders.
   --include-logs      Include run-logs in the copied template.
   --init-git          Run `git init` in the destination.
+  --skip-runtime-setup Skip the default npm install and initial chub build.
   --help              Show this help text.
 EOF
 }
@@ -45,6 +46,7 @@ REPO_NAME=""
 TEMPLATED=true
 INCLUDE_LOGS=false
 INIT_GIT=false
+SKIP_RUNTIME_SETUP=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -90,6 +92,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --init-git)
       INIT_GIT=true
+      shift
+      ;;
+    --skip-runtime-setup)
+      SKIP_RUNTIME_SETUP=true
       shift
       ;;
     --help)
@@ -145,6 +151,17 @@ if ! command -v go >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ "${SKIP_RUNTIME_SETUP}" != "true" ]]; then
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "error: npm is required unless --skip-runtime-setup is used"
+    exit 1
+  fi
+  if ! command -v python >/dev/null 2>&1; then
+    echo "error: python is required unless --skip-runtime-setup is used"
+    exit 1
+  fi
+fi
+
 TEMPLATE_ARGS=(--output "${OUTPUT}" --owner "${OWNER}" --email "${EMAIL}" --repo "${REPO_NAME}")
 
 if [[ "${TEMPLATED}" == "true" ]]; then
@@ -159,6 +176,10 @@ fi
 
 if [[ "${INIT_GIT}" == "true" ]]; then
   TEMPLATE_ARGS+=(--init-git)
+fi
+
+if [[ "${SKIP_RUNTIME_SETUP}" == "true" ]]; then
+  TEMPLATE_ARGS+=(--skip-runtime-setup)
 fi
 
 unset TIMELY_REPO_ROOT TIMELY_CORE_DIR TIMELY_PLAYBOOK_DIR TIMELY_LOCAL_DIR TIMELY_RUNTIME_DIR TIMELY_BIN_DIR TIMELY_CONFIG_PATH
@@ -215,5 +236,21 @@ fi
 
 if [[ ! -f "${OUTPUT}/.timely-core/manifest.json" ]]; then
   echo "error: seeded repository is missing .timely-core/manifest.json"
+  exit 1
+fi
+
+if [[ "${SKIP_RUNTIME_SETUP}" != "true" ]]; then
+  if [[ ! -x "${OUTPUT}/.timely-playbook/runtime/node_modules/.bin/chub" ]]; then
+    echo "error: seeded repository is missing the preinstalled chub runtime"
+    exit 1
+  fi
+  if [[ ! -f "${OUTPUT}/.chub/config.yaml" ]]; then
+    echo "error: seeded repository is missing the prepared .chub/config.yaml"
+    exit 1
+  fi
+fi
+
+if [[ ! -f "${OUTPUT}/.gitignore" ]]; then
+  echo "error: seeded repository is missing the root .gitignore"
   exit 1
 fi
