@@ -1,0 +1,42 @@
+name: Codex Autofix
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+jobs:
+  autofix:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.workflow_run.head_repository.full_name }}
+          ref: ${{ github.event.workflow_run.head_branch }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install tooling
+        run: |
+          npm ci
+          pip install -r requirements.txt
+      - name: Attempt Codex repair
+        uses: openai/codex-autofix-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          workdir: '.'
+          instructions: >-
+            CI failed. Read the logs, repair the issue, and open a PR describing
+            the fix. Obey ownership rules in .orchestrator/ownership.yaml.

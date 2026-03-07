@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "paper": {
+    "arxiv_id": "2602.03798",
+    "title": "FullStack-Agent: Enhancing Agentic Full-Stack Web Coding via Development-Oriented Testing and Repository Back-Translation",
+    "url": "https://arxiv.org/abs/2602.03798"
+  },
+  "default_model": "gpt-5-codex",
+  "projects_dir": "fullstack-projects",
+  "upstreams": [
+    {
+      "id": "fullstack-agent",
+      "url": "https://github.com/mnluzimu/FullStack-Agent.git",
+      "ref": "f0d29a36e2ba34d559fd5d6fcf2268802ccc7a3b",
+      "local_path": ".orchestrator/upstream/fullstack-agent"
+    },
+    {
+      "id": "fullstack-dev",
+      "url": "https://github.com/mnluzimu/FullStack-Dev.git",
+      "ref": "3aa1378ebed0c0e3cfeabb3a2b941396cc480451",
+      "local_path": ".orchestrator/upstream/fullstack-dev"
+    },
+    {
+      "id": "fullstack-bench",
+      "url": "https://github.com/mnluzimu/FullStack-Bench.git",
+      "ref": "9e4cbb593e803309275cc642c5530f2092d7832b",
+      "local_path": ".orchestrator/upstream/fullstack-bench"
+    },
+    {
+      "id": "fullstack-learn",
+      "url": "https://github.com/mnluzimu/FullStack-Learn.git",
+      "ref": "3667b79f0ec282a985c5f8da719f8ebe3ec0adfe",
+      "local_path": ".orchestrator/upstream/fullstack-learn"
+    }
+  ],
+  "templates": {
+    "nextjs-nestjs-postresql": {
+      "mode": "coupled",
+      "repo": "fullstack-dev",
+      "path": "templates/nextjs-nestjs-postresql"
+    },
+    "nextjs__nestjs": {
+      "mode": "decoupled",
+      "repo": "fullstack-dev",
+      "common_path": "templates_decoupled/common_files",
+      "frontend_path": "templates_decoupled/nextjs",
+      "backend_path": "templates_decoupled/nestjs"
+    },
+    "nextjs__django": {
+      "mode": "decoupled",
+      "repo": "fullstack-dev",
+      "common_path": "templates_decoupled/common_files",
+      "frontend_path": "templates_decoupled/nextjs",
+      "backend_path": "templates_decoupled/django"
+    },
+    "vue__nestjs": {
+      "mode": "decoupled",
+      "repo": "fullstack-dev",
+      "common_path": "templates_decoupled/common_files",
+      "frontend_path": "templates_decoupled/vue",
+      "backend_path": "templates_decoupled/nestjs"
+    },
+    "vue__django": {
+      "mode": "decoupled",
+      "repo": "fullstack-dev",
+      "common_path": "templates_decoupled/common_files",
+      "frontend_path": "templates_decoupled/vue",
+      "backend_path": "templates_decoupled/django"
+    }
+  },
+  "phases": [
+    {
+      "id": "architecture",
+      "title": "Plan architecture and acceptance criteria",
+      "prompt_template": "tools/orchestrator/fullstack_prompts/01_architecture.md",
+      "validation_commands": [
+        "test -f docs/fullstack-agent/architecture.md"
+      ]
+    },
+    {
+      "id": "backend",
+      "title": "Implement backend with development-oriented API testing",
+      "prompt_template": "tools/orchestrator/fullstack_prompts/02_backend.md",
+      "validation_commands": [
+        "test -f docs/fullstack-agent/backend-testing.md"
+      ]
+    },
+    {
+      "id": "frontend",
+      "title": "Implement frontend with development-oriented UI testing",
+      "prompt_template": "tools/orchestrator/fullstack_prompts/03_frontend.md",
+      "validation_commands": [
+        "test -f docs/fullstack-agent/frontend-testing.md"
+      ]
+    },
+    {
+      "id": "integration",
+      "title": "Complete integration across API, UI, and data model",
+      "prompt_template": "tools/orchestrator/fullstack_prompts/04_integration.md",
+      "validation_commands": [
+        "test -f docs/fullstack-agent/integration-report.md"
+      ]
+    },
+    {
+      "id": "backtranslation",
+      "title": "Capture back-translation artifacts and release checklist",
+      "prompt_template": "tools/orchestrator/fullstack_prompts/05_backtranslation.md",
+      "validation_commands": [
+        "test -f docs/fullstack-agent/release-readiness.md"
+      ]
+    }
+  ]
+}

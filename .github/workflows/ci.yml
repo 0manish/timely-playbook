@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 0'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install Python deps
+        run: |
+          pip install -r requirements.txt
+      - name: Install Node deps
+        run: |
+          npm ci
+      - name: Run orchestrator status refresh
+        run: |
+          python tools/orchestrator/orchestrator.py update-status
+      - name: Validate repository
+        run: |
+          make validate
+      - name: Package template
+        run: |
+          make compile
+      - name: Bootstrap smoke test
+        run: |
+          bash scripts/bootstrap-smoke.sh --smoke

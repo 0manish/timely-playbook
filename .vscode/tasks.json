@@ -1,0 +1,163 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Orchestrator: plan",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py plan 'Set repo goal'",
+      "problemMatcher": []
+    },
+    {
+      "label": "Orchestrator: ready tasks",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py start-ready implementer",
+      "problemMatcher": []
+    },
+    {
+      "label": "Orchestrator: status",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py update-status",
+      "problemMatcher": []
+    },
+    {
+      "label": "Orchestrator: record CI",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py record-ci org/repo ci.yml",
+      "problemMatcher": []
+    },
+    {
+      "label": "FullStack: init config",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py fullstack-init-config",
+      "problemMatcher": []
+    },
+    {
+      "label": "FullStack: sync upstreams",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py fullstack-sync",
+      "problemMatcher": []
+    },
+    {
+      "label": "FullStack: status",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py fullstack-status demo-project",
+      "problemMatcher": []
+    },
+    {
+      "label": "FullStack: bootstrap project",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py fullstack-bootstrap ${input:fullstackProject} --brief \"${input:fullstackBrief}\" --template ${input:fullstackTemplate}",
+      "problemMatcher": []
+    },
+    {
+      "label": "FullStack: plan project",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py fullstack-plan ${input:fullstackProject}",
+      "problemMatcher": []
+    },
+    {
+      "label": "FullStack: run one phase",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py fullstack-run ${input:fullstackProject} ${input:fullstackPhase}",
+      "problemMatcher": []
+    },
+    {
+      "label": "FullStack: run one phase (skilled)",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py fullstack-run ${input:fullstackProject} ${input:fullstackPhase} --skill ${input:fullstackSkill}",
+      "problemMatcher": []
+    },
+    {
+      "label": "FullStack: run all phases",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py fullstack-run-all ${input:fullstackProject}",
+      "problemMatcher": []
+    },
+    {
+      "label": "FullStack: run all phases (skilled)",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py fullstack-run-all ${input:fullstackProject} --skill ${input:fullstackSkill}",
+      "problemMatcher": []
+    },
+    {
+      "label": "FullStack: run all",
+      "type": "shell",
+      "command": "python tools/orchestrator/orchestrator.py fullstack-run-all demo-project",
+      "problemMatcher": []
+    },
+    {
+      "label": "Chub: build Timely mirror",
+      "type": "shell",
+      "command": "bash scripts/chub.sh build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Chub: validate Timely mirror",
+      "type": "shell",
+      "command": "bash scripts/chub.sh validate",
+      "problemMatcher": []
+    },
+    {
+      "label": "Chub: search",
+      "type": "shell",
+      "command": "bash scripts/chub.sh search \"${input:chubQuery}\" --json",
+      "problemMatcher": []
+    },
+    {
+      "label": "Chub: get",
+      "type": "shell",
+      "command": "bash scripts/chub.sh get ${input:chubEntryId} --json",
+      "problemMatcher": []
+    },
+    {
+      "label": "Chub: MCP server",
+      "type": "shell",
+      "command": "bash scripts/chub-mcp.sh",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "fullstackProject",
+      "type": "promptString",
+      "description": "Fullstack project id",
+      "default": "demo-project"
+    },
+    {
+      "id": "fullstackBrief",
+      "type": "promptString",
+      "description": "Project brief",
+      "default": "Create a production-ready starter implementation for this project."
+    },
+    {
+      "id": "fullstackTemplate",
+      "type": "promptString",
+      "description": "Fullstack template key",
+      "default": "nextjs-nestjs-postresql"
+    },
+    {
+      "id": "fullstackPhase",
+      "type": "promptString",
+      "description": "Fullstack phase id",
+      "default": "architecture"
+    },
+    {
+      "id": "fullstackSkill",
+      "type": "promptString",
+      "description": "Optional SKILLS.md profile (e.g., kiss-fullstack-core)",
+      "default": "kiss-fullstack-core"
+    },
+    {
+      "id": "chubQuery",
+      "type": "promptString",
+      "description": "Context Hub search query",
+      "default": "timely-playbook"
+    },
+    {
+      "id": "chubEntryId",
+      "type": "promptString",
+      "description": "Context Hub entry id",
+      "default": "timely-playbook/timely-playbook"
+    }
+  ]
+}
