@@ -1,0 +1,9 @@
+{
+  "replacementPatterns": [
+    {
+      "pattern": "\\{\\{[^}]+\\}\\}",
+      "replacement": "placeholder"
+    }
+  ],
+  "timeout": "20s"
+}

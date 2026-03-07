@@ -1,0 +1,3 @@
+interface:
+  display_name: "Context Hub"
+  short_description: "Search Timely and public docs via repo-local chub"

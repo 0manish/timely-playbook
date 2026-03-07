@@ -1,0 +1,26 @@
+{
+  "name": "timely-playbook",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Timely Playbook tooling and Context Hub integration",
+  "engines": {
+    "node": ">=22.22.0 <23",
+    "npm": ">=10 <11"
+  },
+  "scripts": {
+    "chub:build": "bash scripts/chub.sh build",
+    "chub:validate": "bash scripts/chub.sh validate",
+    "chub:search": "bash scripts/chub.sh search",
+    "chub:get": "bash scripts/chub.sh get",
+    "chub:mcp": "bash scripts/chub-mcp.sh",
+    "docs:lint": "bash scripts/run-markdownlint.sh",
+    "docs:links": "bash scripts/check-doc-links.sh"
+  },
+  "dependencies": {
+    "@aisuite/chub": "0.1.1"
+  },
+  "devDependencies": {
+    "markdown-link-check": "3.14.2",
+    "markdownlint-cli": "0.48.0"
+  }
+}
