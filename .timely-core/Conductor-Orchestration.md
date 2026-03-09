@@ -14,10 +14,11 @@ orchestrator and governance flow are designed to admit other providers.
   OpenAI Agents SDK (optional) execute deterministic workflows: parsing goals,
   spinning up specialist agents, editing files, tagging Git branches, and
   calling CI/CD APIs.
-- **Shared context:** `.timely-playbook/local/.orchestrator/state.json`,
-  `.timely-playbook/local/.orchestrator/ownership.yaml`, and
-  `.timely-playbook/local/.orchestrator/STATUS.md` record project state so each
-  plane—and every agent—reads from the same source of truth.
+- **Shared context:** `.timely-playbook/local/.cxdb/cxdb.sqlite3` stores the
+  canonical project-local context, `.timely-playbook/local/.leann/index.json`
+  serves retrieval, and `.timely-playbook/local/.orchestrator/state.json` plus
+  `.timely-playbook/local/.orchestrator/STATUS.md` remain portable projections
+  for humans and compatibility tooling.
 
 ## Prerequisites
 
@@ -43,11 +44,16 @@ orchestrator and governance flow are designed to admit other providers.
   `.timely-playbook/local/AGENTS.md`.
 - `.timely-playbook/local/.orchestrator/ownership.yaml` prevents agents from
   stepping on each other by mapping paths to personas and escalation owners.
-- `.timely-playbook/local/.orchestrator/state.json` maintains tasks,
-  dependencies, CI events, and deployment decisions for the conductor.
+- `.timely-playbook/local/.cxdb/cxdb.sqlite3` maintains the canonical tasks,
+  dependencies, CI events, deployment decisions, and local context documents for
+  the conductor.
+- `.timely-playbook/local/.orchestrator/state.json` remains a portable
+  import/export snapshot for seeded repos and manual edits.
 - `.timely-playbook/local/.orchestrator/STATUS.md` offers a human-friendly
   dashboard. Refresh it via `python .timely-playbook/bin/orchestrator.py
   update-status` or the root VS Code task dispatcher.
+- `.timely-playbook/local/.leann/index.json` is rebuilt from CXDB so agents can
+  query local context quickly with `context-search`.
 - Root `.vscode/tasks.json` declares one-click automation to run the conductor
   locally via `.timely-playbook/bin/*`.
 - Root `.github/workflows/ci.yml` and `.github/workflows/autofix.yml`
@@ -59,8 +65,9 @@ orchestrator and governance flow are designed to admit other providers.
 
 ## Agent roster and conductor design
 
-- **Planner:** Breaks a product goal into structured tasks, updating
-  `state.json` with dependencies and sequencing metadata.
+- **Planner:** Breaks a product goal into structured tasks, updating the
+  CXDB-backed state store and compatibility export with dependencies and
+  sequencing metadata.
 - **Architect (optional):** Validates interface contracts and technology choices
   before coding tasks start.
 - **Implementers (frontend/backend/docs/tests/infra):** Each implements tasks
@@ -82,7 +89,9 @@ orchestrator and governance flow are designed to admit other providers.
 
 1. **Phase A – Single-agent but structured:** Run the planner → implementer →
    tester flow sequentially using the provided script. Record progress in
-   `.timely-playbook/local/.orchestrator/state.json` and open PRs manually.
+   `.timely-playbook/local/.cxdb/cxdb.sqlite3`, keep the exported
+   `.timely-playbook/local/.orchestrator/state.json` in sync, and open PRs
+   manually.
 2. **Phase B – Parallel implementers:** Planner assigns owners, conductor
    creates isolated branches/worktrees, and implementers run in parallel
    (background agents in VS Code or via CLI). Reviewer gates merges once CI is
@@ -101,7 +110,7 @@ orchestrator and governance flow are designed to admit other providers.
   hand off tasks through the UI or paste them into `orchestrator.py plan`.
 - Use Agent Sessions / Agent HQ to monitor background agents, ensuring each maps
   to a single task/branch defined in
-  `.timely-playbook/local/.orchestrator/state.json`.
+  the CXDB-backed state store and exported `.timely-playbook/local/.orchestrator/state.json`.
 - Run the `.vscode` tasks to keep state files in sync without memorizing CLI
   commands.
 - When subagents need extra context (docs, diagrams), hand them relative paths
@@ -141,9 +150,11 @@ orchestrator and governance flow are designed to admit other providers.
 - `.timely-playbook/runtime/package.json` pins `@aisuite/chub` so
   `.timely-playbook/bin/chub.sh` and `.timely-playbook/bin/chub-mcp.sh`
   resolve a stable local Context Hub toolchain.
-- Update `.timely-playbook/local/.orchestrator/state.json` and
-  `.timely-playbook/local/.orchestrator/STATUS.md` after every orchestrator run
-  so Agent HQ and CI stay synchronized.
+- Update `.timely-playbook/local/.orchestrator/STATUS.md` after every
+  orchestrator run and keep `.timely-playbook/local/.cxdb/`,
+  `.timely-playbook/local/.leann/`, and the exported
+  `.timely-playbook/local/.orchestrator/state.json` synchronized with
+  `context-sync` or `update-status`.
 
 ## Context Hub workflow
 
@@ -158,6 +169,16 @@ orchestrator and governance flow are designed to admit other providers.
 - Keep the dedicated operator instructions in
   [`Context-Hub-Integration.md`](Context-Hub-Integration.md) synchronized with
   wrapper behavior and CI expectations.
+
+## CXDB and LEANN workflow
+
+- Use `python .timely-playbook/bin/orchestrator.py context-sync` to import the
+  portable state snapshot and refresh project-local retrieval data.
+- Use `python .timely-playbook/bin/orchestrator.py context-search <query>` when
+  agents need project-local context rather than external docs.
+- Keep the dedicated operator instructions in
+  [`CXDB-LEANN-Integration.md`](CXDB-LEANN-Integration.md) synchronized with
+  orchestrator behavior and packaging expectations.
 
 ## FullStack-Agent workflow
 
@@ -194,8 +215,8 @@ Reference: `FullStack-Agent-Integration.md`.
   - Defining specialized planner/tester/reviewer tools that call that provider
     via MCP or CLI wrappers
     (`.timely-core/tools/orchestrator/helpers/agent_tools.py`).
-  - Using state files as deterministic memory that travels between Agents SDK
-    runs and VS Code sessions.
+  - Using CXDB as deterministic project memory, with exported state files for
+    portability between Agents SDK runs and VS Code sessions.
 
 ## Next steps
 
@@ -216,6 +237,7 @@ Reference: `FullStack-Agent-Integration.md`.
    stack.
 3. Replace placeholder tasks inside
    `.timely-playbook/local/.orchestrator/state.json`.
+   Then run `python .timely-playbook/bin/orchestrator.py context-sync`.
 4. Add per-project scripts/tests and wire them into `.github/workflows/ci.yml`.
 5. Keep `TimelyPlaybook.md` in sync with lessons learned so the template evolves
    over time.

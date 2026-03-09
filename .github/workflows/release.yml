@@ -1,0 +1,125 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Install Python deps
+        run: |
+          pip install -r .timely-core/requirements.txt
+      - name: Install Timely runtime deps
+        run: |
+          npm ci --prefix .timely-playbook/runtime
+      - name: Refresh project-local context
+        run: |
+          python .timely-playbook/bin/orchestrator.py update-status
+          python .timely-playbook/bin/orchestrator.py context-sync
+      - name: Validate repository
+        run: |
+          go test ./.timely-core/cmd/timely-playbook/...
+          python -m unittest discover -s .timely-core/tests -p 'test_*.py'
+          python .timely-playbook/bin/orchestrator.py context-search "ready tasks"
+          bash .timely-playbook/bin/chub.sh validate
+          bash .timely-playbook/bin/run-markdownlint.sh
+          bash .timely-playbook/bin/check-doc-links.sh
+      - name: Build package and smoke-check it
+        run: |
+          make compile
+          bash .timely-playbook/bin/bootstrap-smoke.sh --smoke
+
+  build-cli:
+    needs: verify
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Build CLI archive
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          mkdir -p "$RUNNER_TEMP/timely-release/bin"
+          cd .timely-core/cmd/timely-playbook
+          go build -o "$RUNNER_TEMP/timely-release/bin/timely-playbook" .
+          cd "$GITHUB_WORKSPACE"
+          tar -czf "$RUNNER_TEMP/timely-release/timely-playbook_${GOOS}_${GOARCH}.tar.gz" -C "$RUNNER_TEMP/timely-release/bin" timely-playbook
+      - uses: actions/upload-artifact@v4
+        with:
+          name: timely-playbook-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ runner.temp }}/timely-release/timely-playbook_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz
+
+  package-template:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Build template package
+        run: |
+          make compile
+      - uses: actions/upload-artifact@v4
+        with:
+          name: timely-template-release
+          path: dist/timely-template.tgz
+
+  publish:
+    needs:
+      - build-cli
+      - package-template
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/release
+          pattern: timely-playbook-*
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: timely-template-release
+          path: dist/release
+      - name: Generate release checksums
+        run: |
+          cd dist/release
+          sha256sum timely-playbook_*.tar.gz timely-template.tgz > timely-checksums.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/release/timely-playbook_*.tar.gz
+            dist/release/timely-template.tgz
+            dist/release/timely-checksums.txt
+          generate_release_notes: true

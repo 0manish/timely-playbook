@@ -319,6 +319,7 @@ func TestPackageTemplateFromRelocatedSourceGeneratesRootDispatchers(t *testing.T
 	writeTestFile(t, root, ".timely-core/scripts/chub.sh", "#!/usr/bin/env bash\n")
 	writeTestFile(t, root, ".timely-core/scripts/chub-mcp.sh", "#!/usr/bin/env bash\n")
 	writeTestFile(t, root, ".timely-core/scripts/bootstrap-smoke.sh", "#!/usr/bin/env bash\n")
+	writeTestFile(t, root, ".timely-core/scripts/bootstrap-timely-release.sh", "#!/usr/bin/env bash\n")
 	writeTestFile(t, root, ".timely-core/scripts/bootstrap-timely-template.sh", "#!/usr/bin/env bash\n")
 	writeTestFile(t, root, ".timely-core/scripts/run-markdownlint.sh", "#!/usr/bin/env bash\n")
 	writeTestFile(t, root, ".timely-core/scripts/check-doc-links.sh", "#!/usr/bin/env bash\n")
@@ -329,6 +330,17 @@ func TestPackageTemplateFromRelocatedSourceGeneratesRootDispatchers(t *testing.T
 	writeTestFile(t, root, ".timely-playbook/local/AGENTS.md", "# Local guardrail\n")
 	writeTestFile(t, root, ".timely-playbook/local/SKILLS.md", "# Local skills\n")
 	writeTestFile(t, root, ".timely-playbook/local/.orchestrator/ownership.yaml", "owners:\n  - docs\n")
+	writeTestFile(t, root, ".timely-playbook/local/.github/workflows/ci.yml", strings.Join([]string{
+		"name: CI",
+		"",
+		"jobs:",
+		"  verify:",
+		"    steps:",
+		"      - run: npm ci --prefix .timely-playbook/runtime",
+		"      - run: bash .timely-playbook/bin/bootstrap-smoke.sh --smoke",
+	}, "\n")+"\n")
+	writeTestFile(t, root, ".timely-playbook/local/.github/workflows/autofix.yml", "name: Agent Autofix\n")
+	writeTestFile(t, root, ".timely-playbook/local/.github/workflows/release.yml", "name: Release\n")
 	writeTestFile(t, root, ".timely-playbook/local/timely-trackers/test-run-journal.md", "# Journal\n")
 	writeTestFile(t, root, ".timely-playbook/local/skills/chub-context-hub/SKILL.md", "# Skill\n")
 	writeTestFile(t, root, ".timely-playbook/local/.vscode/tasks.json", strings.Join([]string{
@@ -383,6 +395,14 @@ func TestPackageTemplateFromRelocatedSourceGeneratesRootDispatchers(t *testing.T
 		t.Fatalf("expected relocated smoke launcher in generated workflow, got:\n%s", rootCIText)
 	}
 
+	rootRelease, err := os.ReadFile(filepath.Join(output, ".github", "workflows", "release.yml"))
+	if err != nil {
+		t.Fatalf("read release workflow: %v", err)
+	}
+	if !strings.Contains(string(rootRelease), "name: Release") {
+		t.Fatalf("expected canonical release workflow to be copied into packaged output, got:\n%s", rootRelease)
+	}
+
 	rootReadme, err := os.ReadFile(filepath.Join(output, "README.md"))
 	if err != nil {
 		t.Fatalf("read root README: %v", err)
@@ -401,6 +421,9 @@ func TestPackageTemplateFromRelocatedSourceGeneratesRootDispatchers(t *testing.T
 
 	if _, err := os.Stat(filepath.Join(output, ".timely-playbook", "local", ".vscode", "tasks.json")); err != nil {
 		t.Fatalf("expected canonical local task file to be packaged: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(output, ".timely-core", "cmd", "dist")); !os.IsNotExist(err) {
+		t.Fatalf("expected generated cmd/dist directory to be excluded from packaged output, got: %v", err)
 	}
 }
 
@@ -494,6 +517,17 @@ func TestValidateCoreManifestIgnoresPythonCacheFiles(t *testing.T) {
 
 	if err := writeCoreManifest(filepath.Join(root, ".timely-core"), root); err != nil {
 		t.Fatalf("writeCoreManifest failed: %v", err)
+	}
+
+	manifestText, err := os.ReadFile(filepath.Join(root, ".timely-core", "manifest.json"))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	if !strings.Contains(string(manifestText), "\"source_root\": \".\"") {
+		t.Fatalf("expected portable source_root in manifest, got:\n%s", manifestText)
+	}
+	if strings.Contains(string(manifestText), "\"source_commit\"") {
+		t.Fatalf("expected source_commit to be omitted from manifest, got:\n%s", manifestText)
 	}
 
 	writeTestFile(t, root, ".timely-core/__pycache__/module.cpython-311.pyc", "compiled\n")

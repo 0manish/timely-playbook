@@ -17,6 +17,9 @@
 - **FullStack-Agent integration:**
   [FullStack-Agent-Integration.md](FullStack-Agent-Integration.md) —
   step-by-step full-stack pipeline aligned to arXiv `2602.03798`.
+- **CXDB and LEANN integration:**
+  [CXDB-LEANN-Integration.md](CXDB-LEANN-Integration.md) — default project-local
+  context storage and retrieval architecture for packaged Timely repos.
 - **Context Hub integration:**
   [Context-Hub-Integration.md](Context-Hub-Integration.md) — repo-local `chub`
   and `chub-mcp` workflow for Timely docs and public API retrieval.
@@ -41,8 +44,12 @@
 - **Seeded orchestrator launcher:** `python .timely-playbook/bin/orchestrator.py`
   (implemented from
   [tools/orchestrator/orchestrator.py](tools/orchestrator/orchestrator.py))
+- **Seeded CXDB store:** `.timely-playbook/local/.cxdb/cxdb.sqlite3`
+- **Seeded LEANN index:** `.timely-playbook/local/.leann/index.json`
 - **Seeded Context Hub wrappers:** `bash .timely-playbook/bin/chub.sh` and
   `bash .timely-playbook/bin/chub-mcp.sh`
+- **Release bootstrap script:**
+  `bash .timely-playbook/bin/bootstrap-timely-release.sh`
 - **Seeded Context Hub skill installer:**
   `bash .timely-playbook/bin/install-agent-skill.sh`
 - **Seeded Context Hub Codex compatibility installer:**
@@ -60,6 +67,8 @@
   exports unless explicitly included
 - **CI workflow:** [../.github/workflows/ci.yml](../.github/workflows/ci.yml)
 - **Autofix workflow:** [../.github/workflows/autofix.yml](../.github/workflows/autofix.yml)
+- **Release workflow:**
+  [../.github/workflows/release.yml](../.github/workflows/release.yml)
 
 ## Tracker shortcuts
 
@@ -78,10 +87,12 @@
 
 - Re-run `make compile` after manual edits so `dist/timely-template` and
   `dist/timely-template.tgz` stay current.
+- Push a `v*` tag to publish the generated release assets through
+  `.github/workflows/release.yml`.
 - Verify baseline portability before publishing:
 
 ```bash
-tar -tzf dist/timely-template.tgz | grep -E '\.timely-core/manifest\.json|\.timely-core/scripts/bootstrap-timely-template\.sh|\.timely-playbook/bin/install-agent-skill\.sh|\.timely-playbook/bin/install-codex-skill\.sh|\.timely-playbook/local/skills/chub-context-hub/SKILL\.md'
+tar -tzf dist/timely-template.tgz | grep -E '\.timely-core/manifest\.json|\.timely-core/scripts/bootstrap-timely-template\.sh|\.timely-core/scripts/bootstrap-timely-release\.sh|\.timely-playbook/bin/install-agent-skill\.sh|\.timely-playbook/bin/install-codex-skill\.sh|\.timely-playbook/local/skills/chub-context-hub/SKILL\.md'
 ```
 
 - Sync the updated bundle into long-lived template locations before cloning the

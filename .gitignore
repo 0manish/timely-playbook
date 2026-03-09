@@ -12,5 +12,11 @@ __pycache__/
 dist/
 .chub/
 .bin/
+run-logs/
+.timely-playbook/local/run-logs/
 node_modules/
 .timely-playbook/runtime/cache/
+.timely-playbook/local/.cxdb/*.sqlite3
+.timely-playbook/local/.cxdb/*.sqlite3-shm
+.timely-playbook/local/.cxdb/*.sqlite3-wal
+.timely-playbook/local/.leann/index.json

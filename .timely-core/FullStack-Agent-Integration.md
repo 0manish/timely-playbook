@@ -37,7 +37,8 @@ This playbook incorporates the method from arXiv `2602.03798` into the Timely or
 1. Initialize config and pin upstream repositories.
 2. Bootstrap a project from a FullStack-Dev template.
 3. Generate a phase plan and sync it into
-   `.timely-playbook/local/.orchestrator/state.json`.
+   the CXDB-backed orchestrator state store, keeping
+   `.timely-playbook/local/.orchestrator/state.json` as the portable export.
 4. Run phases sequentially with the configured provider, capturing artifacts
    after each phase.
 5. Reuse generated back-translation traces in future project starts.
@@ -87,6 +88,9 @@ deterministic.
 ## Notes for Future Projects
 - Keep `.timely-playbook/local/.orchestrator/fullstack-agent.json` in version
   control for reproducibility.
+- Keep `.timely-playbook/local/.cxdb/` and `.timely-playbook/local/.leann/`
+  project-local; regenerate them with `context-sync` instead of copying them
+  between repos.
 - Update pinned refs only with an explicit migration note.
 - Add or tighten `validation_commands` per phase to match each project stack.
 - Avoid copying upstream `.env` example secrets; always inject credentials through local/CI secret stores.

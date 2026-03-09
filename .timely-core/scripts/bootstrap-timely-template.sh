@@ -146,8 +146,8 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v go >/dev/null 2>&1; then
-  echo "error: go is required"
+if ! command -v go >/dev/null 2>&1 && ! command -v timely-playbook >/dev/null 2>&1; then
+  echo "error: install Go 1.22+ or place timely-playbook on PATH"
   exit 1
 fi
 
@@ -187,6 +187,8 @@ unset TIMELY_REPO_ROOT TIMELY_CORE_DIR TIMELY_PLAYBOOK_DIR TIMELY_LOCAL_DIR TIME
 pushd "${SOURCE}" >/dev/null
 if [[ -x "${SOURCE}/.timely-playbook/bin/timely-playbook" ]]; then
   "${SOURCE}/.timely-playbook/bin/timely-playbook" seed "${TEMPLATE_ARGS[@]}"
+elif command -v timely-playbook >/dev/null 2>&1 && ! command -v go >/dev/null 2>&1; then
+  timely-playbook seed "${TEMPLATE_ARGS[@]}"
 else
   BIN_DIR="${SOURCE}/.bin"
   BIN_PATH="${BIN_DIR}/timely-playbook"
@@ -224,6 +226,11 @@ if [[ ! -f "${OUTPUT}/.timely-playbook/bin/install-agent-skill.sh" ]]; then
   exit 1
 fi
 
+if [[ ! -f "${OUTPUT}/.timely-playbook/bin/bootstrap-timely-release.sh" ]]; then
+  echo "error: seeded repository is missing the release bootstrap script"
+  exit 1
+fi
+
 if [[ ! -f "${OUTPUT}/.timely-playbook/bin/install-codex-skill.sh" ]]; then
   echo "error: seeded repository is missing the Codex compatibility skill installer"
   exit 1
@@ -236,6 +243,16 @@ fi
 
 if [[ ! -f "${OUTPUT}/.timely-core/manifest.json" ]]; then
   echo "error: seeded repository is missing .timely-core/manifest.json"
+  exit 1
+fi
+
+if [[ ! -f "${OUTPUT}/.timely-playbook/local/.cxdb/README.md" ]]; then
+  echo "error: seeded repository is missing the CXDB directory scaffold"
+  exit 1
+fi
+
+if [[ ! -f "${OUTPUT}/.timely-playbook/local/.leann/README.md" ]]; then
+  echo "error: seeded repository is missing the LEANN directory scaffold"
   exit 1
 fi
 
@@ -252,5 +269,10 @@ fi
 
 if [[ ! -f "${OUTPUT}/.gitignore" ]]; then
   echo "error: seeded repository is missing the root .gitignore"
+  exit 1
+fi
+
+if [[ ! -f "${OUTPUT}/.github/workflows/release.yml" ]]; then
+  echo "error: seeded repository is missing the root release workflow"
   exit 1
 fi

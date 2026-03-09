@@ -25,15 +25,19 @@ flowchart TD
         RepoAgents["Repository Guardrail\n(AGENTS.md)"]
         TimelyCLI["Timely CLI\n(.timely-core/cmd/timely-playbook)"]
         Orchestrator["Orchestrator Launcher\n(.timely-playbook/bin/orchestrator.py)"]
+        CXDB["CXDB Store\n(.timely-playbook/local/.cxdb/cxdb.sqlite3)"]
+        LEANN["LEANN Index\n(.timely-playbook/local/.leann/index.json)"]
         Chub["Context Hub Mirror\n(.timely-core/tools/chub/timely_registry.py)"]
         ChubMeta["Chub Mirror Metadata\n(.chub/timely-mirror-metadata.json)"]
         ChubSkill["Context Hub Skill\n(.timely-playbook/local/skills/chub-context-hub)"]
         SkillInstall["Skill Installer\n(.timely-playbook/bin/install-agent-skill.sh)"]
+        ReleaseBootstrap["Release Bootstrap\n(.timely-playbook/bin/bootstrap-timely-release.sh)"]
         Validate["Repo Validation\n(make validate)"]
         Package["Package Build\n(make compile)"]
         Smoke["Bootstrap Smoke\n(.timely-playbook/bin/bootstrap-smoke.sh --smoke)"]
         CI["CI Workflow\n(.github/workflows/ci.yml)"]
         Autofix["Autofix Workflow\n(.github/workflows/autofix.yml)"]
+        ReleaseWF["Release Workflow\n(.github/workflows/release.yml)"]
     end
 
     Downstream["Seeded Repository"]
@@ -55,13 +59,18 @@ flowchart TD
     RepoAgents -->|governs updates to| Governance
     RepoAgents -->|governs updates to| Guide
     Guide -->|documents| TimelyCLI
+    Guide -->|documents| CXDB
+    Guide -->|documents| LEANN
     Guide -->|documents| Chub
     Guide -->|documents| ChubMeta
     Guide -->|documents| ChubSkill
     Guide -->|documents| SkillInstall
+    Guide -->|documents| ReleaseBootstrap
     Guide -->|documents| Package
     Orchestrator -->|records evidence in| Journal
     Orchestrator -->|feeds work into| Backlog
+    Orchestrator -->|stores local context in| CXDB
+    CXDB -->|feeds local retrieval| LEANN
     TimelyCLI -->|updates| Ledger
     TimelyCLI -->|updates| Journal
     TimelyCLI -->|updates| Backlog
@@ -74,11 +83,13 @@ flowchart TD
     Validate -->|checks| RepoAgents
     Validate -->|checks| ChubSkill
     Package -->|exports| Downstream
+    ReleaseBootstrap -->|seeds from published assets| Downstream
     Smoke -->|verifies| Downstream
     CI -->|runs| Validate
     CI -->|runs| Package
     CI -->|runs| Smoke
     Autofix -->|repairs failures from| CI
+    ReleaseWF -->|publishes assets from| Package
 
     click Playbook "AutonomousAgentTracking.md" "Open playbook"
     click Runbook "AutomationPlaybook-GettingStarted.md" "Open quickstart"
@@ -97,9 +108,13 @@ flowchart TD
     click RepoAgents "../.timely-playbook/local/AGENTS.md" "Open repository guardrail"
     click TimelyCLI "cmd/timely-playbook/main.go" "Open Timely CLI"
     click Orchestrator "tools/orchestrator/orchestrator.py" "Open orchestrator"
+    click CXDB "../.timely-playbook/local/.cxdb/README.md" "Open CXDB notes"
+    click LEANN "../.timely-playbook/local/.leann/README.md" "Open LEANN notes"
     click Chub "tools/chub/timely_registry.py" "Open Context Hub mirror generator"
     click ChubSkill "../.timely-playbook/local/skills/chub-context-hub/SKILL.md" "Open Context Hub skill bundle"
     click SkillInstall "scripts/install-agent-skill.sh" "Open skill installer"
+    click ReleaseBootstrap "scripts/bootstrap-timely-release.sh" "Open release bootstrap"
     click CI "../.github/workflows/ci.yml" "Open CI workflow"
     click Autofix "../.github/workflows/autofix.yml" "Open autofix workflow"
+    click ReleaseWF "../.github/workflows/release.yml" "Open release workflow"
 ```

@@ -57,6 +57,8 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(workspace.local_dir, self.root / ".timely-playbook" / "local")
         self.assertEqual(workspace.runtime_dir, self.root / ".timely-playbook" / "runtime")
         self.assertEqual(workspace.config_path, self.root / ".timely-playbook" / "config.yaml")
+        self.assertEqual(workspace.cxdb_path, self.root / ".timely-playbook" / "local" / ".cxdb" / "cxdb.sqlite3")
+        self.assertEqual(workspace.leann_index_path, self.root / ".timely-playbook" / "local" / ".leann" / "index.json")
 
 
 if __name__ == "__main__":

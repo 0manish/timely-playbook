@@ -133,6 +133,9 @@
   `.timely-playbook/` with generated root dispatcher files only.
 - 2026-03-07 – Self-migrated the authoring repository to the same relocated
   `.timely-core/` plus `.timely-playbook/` layout used by seeded repos.
+- 2026-03-09 – Added CXDB and LEANN as the default project-local context plane
+  while keeping `.timely-core/` read-only and `state.json` as the portable
+  export.
 
 ## Template purpose
 
@@ -151,8 +154,10 @@
   enters seeded repos through `.timely-playbook/bin/orchestrator.py` and
   `.timely-core/tools/orchestrator/`.
 - `.timely-playbook/local/.orchestrator/ownership.yaml` defines agent blast
-  radii; `.timely-playbook/local/.orchestrator/state.json` tracks tasks, CI
-  events, and deployments.
+  radii; `.timely-playbook/local/.cxdb/cxdb.sqlite3` stores canonical tasks, CI
+  events, local context documents, and deployments while
+  `.timely-playbook/local/.orchestrator/state.json` remains the portable
+  import/export snapshot.
 - Root `.vscode/tasks.json` exposes the orchestrator commands (`plan`,
   `start-ready`, `record-ci`, `update-status`, and FullStack commands) so
   agents can run them deterministically.
@@ -211,6 +216,8 @@
   Agents SDK integrations.
 - `python .timely-playbook/bin/orchestrator.py` — entry point controlling
   Planner/Implementer/Tester/Reviewer/DevOps agents.
+- `python .timely-playbook/bin/orchestrator.py context-sync` and
+  `context-search` — project-local CXDB and LEANN maintenance/query commands.
 - `bash .timely-playbook/bin/chub.sh` and
   `bash .timely-playbook/bin/chub-mcp.sh` — repo-local Context Hub CLI/MCP
   wrappers.

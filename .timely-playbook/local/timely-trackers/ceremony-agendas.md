@@ -1,7 +1,8 @@
 # Ceremony agendas
 
 ## Weekly sync
-- Review `.timely-playbook/local/.orchestrator/state.json` and
+- Review `.timely-playbook/local/.cxdb/cxdb.sqlite3`,
+  `.timely-playbook/local/.orchestrator/state.json`, and
   `.timely-playbook/local/.orchestrator/STATUS.md`.
 - Confirm open docs drift from `Timely-Governance-Trackers.md` and `AGENTS.md`.
 - Resolve one backlog item for the next 72 hours.

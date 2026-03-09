@@ -8,6 +8,8 @@ flowchart LR
     CLI[Timely CLI]
     Orchestrator[Orchestrator Tools]
     Chub[Context Hub Mirror]
+    CXDB[CXDB]
+    LEANN[LEANN]
     CI[Validation and CI]
     Package[Packaged Template]
     Downstream[Seeded Repository]
@@ -21,7 +23,10 @@ flowchart LR
     CLI -->|packages| Package
     Orchestrator -->|reads guides| Docs
     Orchestrator -->|records evidence| Trackers
+    Orchestrator -->|stores project context in| CXDB
+    CXDB -->|feeds local retrieval| LEANN
     Chub -->|serves local search| Retrieval
+    LEANN -->|serves project-local search| Retrieval
     Docs -->|validated by| CI
     Trackers -->|validated by| CI
     Orchestrator -->|tested by| CI

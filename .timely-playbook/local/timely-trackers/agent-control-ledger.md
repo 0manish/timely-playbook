@@ -6,7 +6,7 @@
 
 ## Overview
 - **Milestone / Epic:** Guardrail rollout and governance bootstrap
-- **Last Updated:** 2026-03-07
+- **Last Updated:** 2026-03-09
 - **Primary Owner (agent or human):** Smoke Test
 - **Escalation Contact:** <smoke@example.com> (self-escalate; log outcome in decision log)
 
@@ -37,6 +37,8 @@
 | 7 | Align docs, scripts, and CI to the relocated Timely layout and self-install path. | Tasks 1-6 | TimelyPlaybook.md | 2026-03-07 | Done |
 | 8 | Generalize execution and autofix surfaces beyond Codex while preserving the default Codex path. | Tasks 1-7 | AGENTS.md | 2026-03-07 | Done |
 | 9 | Self-migrate the authoring repository so source, docs, and automation all use the relocated layout. | Tasks 1-8 | TimelyPlaybook.md | 2026-03-07 | Done |
+| 10 | Add CXDB and LEANN as the default project-local context plane while preserving packaged template portability. | Tasks 1-9 | CXDB-LEANN-Integration.md | 2026-03-09 | Done |
+| 11 | Publish release-ready CLI binaries and a packaged-template bootstrap flow so end users can install Timely without a source checkout. | Tasks 1-10 | TimelyPlaybook.md | 2026-03-09 | Done |
 
 ## Quality Gates
 - **Required tests:** `make validate`, `make compile`, and
@@ -55,6 +57,8 @@
 | 2026-03-07 | Docs drifted from the actual root layout and install surface. | High | Align guides, scripts, and CI; add repo-local validation tools and a repeatable verification path. | Closed |
 | 2026-03-07 | Codex-specific naming in orchestration and CI could block adoption by other agent providers. | Medium | Add provider abstraction, generic skill installer, and provider-aware autofix hooks while retaining Codex compatibility. | Closed |
 | 2026-03-07 | The authoring repo layout diverged from the relocated layout emitted into seeded repos. | High | Self-migrate the source repo, regenerate dispatchers, and verify packaging/bootstrap from the relocated tree. | Closed |
+| 2026-03-09 | File-only orchestrator state would not scale well enough for default local retrieval and long-lived agent context. | Medium | Make CXDB the canonical local store, keep `state.json` as the portable export, and rebuild LEANN from project-local sources. | Closed |
+| 2026-03-09 | End users would still need a source checkout and local Go toolchain to start a new Timely repo. | Medium | Publish platform CLI archives, checksummed template assets, and a release bootstrap script that installs the binary and seeds the repo directly. | Closed |
 
 ## Decision & Change Log
 | Date | Decision | Context / Link | Owner |
@@ -73,3 +77,5 @@
 | 2026-03-07 | Generalize agent execution, skill installation, and autofix defaults so Codex remains the default path without being the only supported path. | AGENTS.md | Smoke Test |
 | 2026-03-07 | Record generated Context Hub mirror metadata so `@aisuite/chub` changes can be reviewed for downstream compatibility impact. | Context-Hub-Integration.md | Smoke Test |
 | 2026-03-07 | Self-migrate the authoring repository to the relocated `.timely-core/` plus `.timely-playbook/` layout so source and generated repos match. | TimelyPlaybook.md | Smoke Test |
+| 2026-03-09 | Adopt CXDB and LEANN as the default project-local context plane, with `.timely-core/` staying read-only and generated project state living under `.timely-playbook/local/`. | CXDB-LEANN-Integration.md | Smoke Test |
+| 2026-03-09 | Standardize distribution on GitHub release assets: platform Go binaries, `timely-template.tgz`, checksums, and a bootstrap script that seeds new repos from the published template. | TimelyPlaybook.md | Smoke Test |

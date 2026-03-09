@@ -20,7 +20,7 @@ from tools.orchestrator.agents.implementer import ImplementerAgent
 from tools.orchestrator.agents.tester import TesterAgent
 from tools.orchestrator.agents.reviewer import ReviewerAgent
 from tools.orchestrator.agents.devops import DevOpsAgent
-from tools.orchestrator.state import STATE_PATH, State
+from tools.orchestrator.state import STATE_PATH, State, search_context, sync_context
 from tools.orchestrator.helpers import ci_tools
 from tools.orchestrator import fullstack
 
@@ -61,6 +61,14 @@ def update_status() -> None:
     state = State.load()
     state.update_status_file()
     print("STATUS.md refreshed")
+
+
+def context_sync() -> None:
+    print(json.dumps(sync_context(), indent=2))
+
+
+def context_search(query: str, limit: int) -> None:
+    print(json.dumps(search_context(query=query, limit=limit), indent=2))
 
 
 def review(task_id: str, verdict: str) -> None:
@@ -167,7 +175,12 @@ def main() -> None:
     ci_cmd.add_argument("repo", help="GitHub repo, e.g. org/project")
     ci_cmd.add_argument("workflow", help="Workflow file name, e.g. ci.yml")
 
-    sub.add_parser("update-status", help="Regenerate STATUS.md from state.json")
+    sub.add_parser("update-status", help="Regenerate STATUS.md from the CXDB-backed state")
+    sub.add_parser("context-sync", help="Sync project-local CXDB and LEANN state")
+
+    context_search_cmd = sub.add_parser("context-search", help="Search the local LEANN context index")
+    context_search_cmd.add_argument("query")
+    context_search_cmd.add_argument("--limit", type=int, default=5, help="Maximum number of results")
 
     review_cmd = sub.add_parser("review", help="Record reviewer verdict for a task")
     review_cmd.add_argument("task_id")
@@ -190,7 +203,7 @@ def main() -> None:
     fs_bootstrap_cmd.add_argument("--template", default="nextjs-nestjs-postresql", help="Template key from fullstack-agent.json")
     fs_bootstrap_cmd.add_argument("--allow-existing", action="store_true", help="Allow writing into an existing project directory")
 
-    fs_plan_cmd = sub.add_parser("fullstack-plan", help="Prepare phase plan and sync state.json tasks")
+    fs_plan_cmd = sub.add_parser("fullstack-plan", help="Prepare phase plan and sync CXDB-backed tasks")
     fs_plan_cmd.add_argument("project_id")
     fs_plan_cmd.add_argument("--no-state", action="store_true", help="Do not sync orchestrator state tasks")
 
@@ -229,6 +242,10 @@ def main() -> None:
         record_ci(repo=args.repo, workflow=args.workflow)
     elif args.command == "update-status":
         update_status()
+    elif args.command == "context-sync":
+        context_sync()
+    elif args.command == "context-search":
+        context_search(query=args.query, limit=args.limit)
     elif args.command == "review":
         review(task_id=args.task_id, verdict=args.verdict)
     elif args.command == "deploy":

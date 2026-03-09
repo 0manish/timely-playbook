@@ -78,6 +78,8 @@ added only when those component directories actually exist in a seeded repo.
    - Traceability updates for changed operator expectations.
 4. **Automate ingestion** — Long term, expose these artifacts via the Timely CLI
    and Context Hub mirror so agents can query and append entries programmatically.
+   In the default Timely architecture, sync them into CXDB and rebuild LEANN so
+   project-local retrieval stays aligned with the Markdown sources.
 
 ## Additional suggestions for early-stage projects
 

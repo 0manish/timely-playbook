@@ -49,6 +49,22 @@ class WorkspacePaths:
         return self.local_dir / ".orchestrator" / "STATUS.md" if self.relocated else self.root / ".orchestrator" / "STATUS.md"
 
     @property
+    def cxdb_dir(self) -> Path:
+        return self.local_dir / ".cxdb" if self.relocated else self.root / ".cxdb"
+
+    @property
+    def cxdb_path(self) -> Path:
+        return self.cxdb_dir / "cxdb.sqlite3"
+
+    @property
+    def leann_dir(self) -> Path:
+        return self.local_dir / ".leann" if self.relocated else self.root / ".leann"
+
+    @property
+    def leann_index_path(self) -> Path:
+        return self.leann_dir / "index.json"
+
+    @property
     def fullstack_config_path(self) -> Path:
         return self.local_dir / ".orchestrator" / "fullstack-agent.json" if self.relocated else self.root / ".orchestrator" / "fullstack-agent.json"
 

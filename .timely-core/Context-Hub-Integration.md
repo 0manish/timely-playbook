@@ -2,7 +2,8 @@
 
 > Timely Playbook ships a repo-local Context Hub mirror so operators and agents
 > can search current Timely docs and fetch curated public API docs from the same
-> `chub` surface.
+> `chub` surface. In the default Timely architecture, `chub` complements the
+> project-local CXDB and LEANN layers rather than replacing them.
 
 ## What this adds
 

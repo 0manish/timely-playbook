@@ -16,6 +16,8 @@
   [Timely-Flowgraph.md](Timely-Flowgraph.md)
 - Conductor blueprint:
   [Conductor-Orchestration.md](Conductor-Orchestration.md)
+- CXDB and LEANN integration:
+  [CXDB-LEANN-Integration.md](CXDB-LEANN-Integration.md)
 - Context Hub integration:
   [Context-Hub-Integration.md](Context-Hub-Integration.md)
 - Full-stack agent pipeline:
@@ -29,7 +31,9 @@
   `.timely-playbook/local/` as the editable Timely surface.
 - Keep `.timely-playbook/local/.orchestrator/ownership.yaml`,
   `.timely-playbook/local/.orchestrator/state.json`,
-  `.timely-playbook/local/.orchestrator/STATUS.md`, root
+  `.timely-playbook/local/.orchestrator/STATUS.md`,
+  `.timely-playbook/local/.cxdb/`,
+  `.timely-playbook/local/.leann/`, root
   `.vscode/tasks.json`, and root `.github/workflows/*.yml` intact; downstream
   repos inherit these guardrails.
 - Update `AGENTS.md` whenever you add new governance rules so every operator and
@@ -45,6 +49,10 @@
 - `npm 10.x`
 - Git and Bash
 
+End users who bootstrap from published release assets can skip the local Go
+toolchain. Template maintainers still need Go to build and verify the source
+tree.
+
 Fresh seeds preinstall the pinned runtime dependencies and prepare `.chub/` by
 default. Re-run the install only if the seeded runtime dependencies were
 cleared:
@@ -58,6 +66,21 @@ The seeded runtime pins Node in `.timely-playbook/runtime/.nvmrc` and
 
 ### Build or install the CLI
 
+For end-user installation from published releases:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/<org>/<timely-playbook-repo>/main/.timely-core/scripts/bootstrap-timely-release.sh | bash -s -- \
+  --release-repo <org>/<timely-playbook-repo> \
+  --output ~/projects/aurora \
+  --owner "Aurora Ops" \
+  --email "ops@example.com" \
+  --repo "aurora" \
+  --init-git
+```
+
+This installs `timely-playbook` to `~/.local/bin` by default, downloads the
+matching `timely-template.tgz`, verifies checksums, and seeds the new repo.
+
 In a seeded repo, use the generated launcher:
 
 ```bash
@@ -66,6 +89,8 @@ bash .timely-playbook/bin/timely-playbook help
 
 This launcher builds a cached CLI binary under
 `.timely-playbook/runtime/cache/timely-playbook` and executes it.
+If Go is unavailable but `timely-playbook` is already installed on your `PATH`,
+the launcher falls back to that binary instead of rebuilding from source.
 
 If you want the CLI globally on your `PATH`, use:
 
@@ -150,6 +175,7 @@ python -m unittest discover -s ./.timely-core/tests -p 'test_*.py'
 bash .timely-playbook/bin/chub.sh validate
 bash .timely-playbook/bin/run-markdownlint.sh
 bash .timely-playbook/bin/check-doc-links.sh
+python .timely-playbook/bin/orchestrator.py context-sync
 ```
 
 Template maintainers can still run `make validate` from the Timely source repo.
@@ -197,6 +223,9 @@ bash .timely-playbook/bin/timely-playbook run-weekly
   the template bundle for reuse.
 - `timely-playbook seed` — create a new repo from the current template in one
   command and preinstall the repo-local runtime plus `.chub/` state by default.
+- `bash .timely-playbook/bin/bootstrap-timely-release.sh` — download published
+  release assets, install the CLI binary, and seed a repo without a source
+  checkout.
 - `timely-playbook migrate-layout` — relocate a legacy Timely repo in place and
   back up the original Timely-owned files under
   `.timely-playbook/migration-backups/<timestamp>/`. The default migration path
@@ -214,9 +243,14 @@ bash .timely-playbook/bin/timely-playbook run-weekly
   clone or update pinned upstream FullStack repos.
 - `python .timely-playbook/bin/orchestrator.py fullstack-bootstrap` —
   scaffold a full-stack project workspace.
+- `python .timely-playbook/bin/orchestrator.py context-sync` — import the
+  portable `.timely-playbook/local/.orchestrator/state.json` snapshot into CXDB,
+  refresh the LEANN index, and rescan local governance files.
+- `python .timely-playbook/bin/orchestrator.py context-search <query>` —
+  search the project-local LEANN index.
 - `python .timely-playbook/bin/orchestrator.py fullstack-plan <project_id>` —
-  generate a phase plan and sync tasks into
-  `.timely-playbook/local/.orchestrator/state.json`.
+  generate a phase plan and sync tasks into the CXDB-backed state store while
+  updating `.timely-playbook/local/.orchestrator/state.json`.
 - `python .timely-playbook/bin/orchestrator.py fullstack-run <project_id> <phase_id>
   [--provider <provider>] [--skill <profile>]` — execute a development phase
   via the configured agent provider and capture back-translation artifacts.
@@ -256,6 +290,21 @@ bash .timely-playbook/bin/timely-playbook run-weekly
 - Set `CHUB_TELEMETRY=0` if you want to disable telemetry without editing the
   generated config file.
 
+## CXDB and LEANN workflow
+
+- Use [CXDB-LEANN-Integration.md](CXDB-LEANN-Integration.md) for the full
+  architecture notes.
+- The canonical project-local store lives at
+  `.timely-playbook/local/.cxdb/cxdb.sqlite3`.
+- The derived retrieval index lives at
+  `.timely-playbook/local/.leann/index.json`.
+- Typical sequence:
+
+  ```bash
+  python .timely-playbook/bin/orchestrator.py update-status
+  python .timely-playbook/bin/orchestrator.py context-search "ready tasks"
+  ```
+
 ## Packaging and reuse
 
 Create a fresh packaged snapshot:
@@ -267,6 +316,9 @@ make compile
 This generates:
 - `dist/timely-template`
 - `dist/timely-template.tgz`
+- Release workflow assets:
+  `timely-playbook_<os>_<arch>.tar.gz`, `timely-template.tgz`,
+  `timely-checksums.txt`
 
 Seed from the current source tree directly:
 
@@ -281,8 +333,13 @@ bash .timely-playbook/bin/timely-playbook seed \
 Verify the archive contents before shipping:
 
 ```bash
-tar -tzf dist/timely-template.tgz | grep -E '\.timely-core/manifest\.json|\.timely-core/scripts/bootstrap-timely-template\.sh|\.timely-playbook/bin/install-agent-skill\.sh|\.timely-playbook/bin/install-codex-skill\.sh|\.timely-playbook/local/skills/chub-context-hub/SKILL\.md'
+tar -tzf dist/timely-template.tgz | grep -E '\.timely-core/manifest\.json|\.timely-core/scripts/bootstrap-timely-template\.sh|\.timely-core/scripts/bootstrap-timely-release\.sh|\.timely-playbook/bin/install-agent-skill\.sh|\.timely-playbook/bin/install-codex-skill\.sh|\.timely-playbook/local/skills/chub-context-hub/SKILL\.md'
 ```
+
+Publish a release by pushing a `v*` tag. The generated
+`.github/workflows/release.yml` workflow verifies the repo, builds macOS/Linux
+CLI archives, publishes `timely-template.tgz`, and emits `timely-checksums.txt`
+for the bootstrap script.
 
 ### Cross-machine bootstrap flow
 
@@ -310,4 +367,6 @@ Sanity check in the new repo:
 1. Run `npm ci --prefix .timely-playbook/runtime`.
 2. Run `make verify`.
 3. Confirm license and contribution docs are current.
-4. Rebuild `dist/` and publish only the refreshed archive.
+4. Push the release tag (`git tag vX.Y.Z && git push origin vX.Y.Z`) so
+   `.github/workflows/release.yml` can publish the binary archives, template
+   tarball, and checksums.

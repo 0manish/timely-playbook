@@ -3,10 +3,29 @@
 Use these steps whenever you spin up a fresh repo that should inherit the
 orchestrator-ready scaffolding.
 
+## Recommended end-user path: bootstrap from a published release
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/<org>/<timely-playbook-repo>/main/.timely-core/scripts/bootstrap-timely-release.sh | bash -s -- \
+  --release-repo <org>/<timely-playbook-repo> \
+  --output ~/projects/aurora \
+  --owner "Aurora Ops" \
+  --email "ops@example.com" \
+  --repo "aurora" \
+  --init-git
+```
+
+This installs the released `timely-playbook` binary to `~/.local/bin` by
+default, downloads `timely-template.tgz`, verifies the checksums, and seeds the
+repo in one step. Use `--version vX.Y.Z` if you need a specific tag instead of
+the latest release.
+
+## Source checkout path: seed from the current template tree
+
 1. **Seed the new repository:**
 
    ```bash
-   timely-playbook seed \
+   bash .timely-playbook/bin/timely-playbook seed \
      --output ~/projects/aurora \
      --owner "Aurora Ops" \
      --email "ops@example.com" \
@@ -14,8 +33,10 @@ orchestrator-ready scaffolding.
    ```
 
    This creates a relocated Timely workspace in one step. The seeded repo gets
-   a read-only `.timely-core/`, an editable `.timely-playbook/local/`, a
-   repo-local runtime under `.timely-playbook/runtime/`, and generated root
+   a read-only `.timely-core/`, an editable `.timely-playbook/local/`,
+   project-local CXDB and LEANN directories under
+   `.timely-playbook/local/.cxdb/` and `.timely-playbook/local/.leann/`,
+   a repo-local runtime under `.timely-playbook/runtime/`, and generated root
    files for `README.md`, `AGENTS.md`, `SKILLS.md`,
    `.github/workflows/*.yml`, and `.vscode/tasks.json`. It also installs the
    repo-local runtime dependencies and prepares `.chub/` by default.
@@ -29,11 +50,16 @@ orchestrator-ready scaffolding.
 
    Then add the remote with `git remote add origin <git-url>`.
 
+   `update-status` imports the portable
+   `.timely-playbook/local/.orchestrator/state.json` snapshot into
+   `.timely-playbook/local/.cxdb/cxdb.sqlite3`, refreshes
+   `.timely-playbook/local/.leann/index.json`, and rewrites `STATUS.md`.
+
    Context Hub is not a silent background service. It is prepared on demand
    when you run `bash .timely-playbook/bin/chub.sh ...`,
    `bash .timely-playbook/bin/chub-mcp.sh`, or repo validation commands.
 
-## One-shot bootstrap on a clean machine
+## One-shot bootstrap on a clean machine from a source checkout
 
 From any host with `git`, `go`, `npm`, and `python`:
 
@@ -74,6 +100,17 @@ Verify baseline files after bootstrap:
 [ -f ~/projects/aurora/.timely-core/manifest.json ]
 ```
 
+If you already installed the release binary, you can also bootstrap from a
+packaged artifact with:
+
+```bash
+timely-playbook seed \
+  --output ~/projects/aurora \
+  --owner "Aurora Ops" \
+  --email "ops@example.com" \
+  --repo "aurora"
+```
+
 ## Smoke check for bootstrap tooling
 
 ```bash
@@ -99,6 +136,13 @@ make -C ~/timely-playbook test-smoke
    python .timely-playbook/bin/orchestrator.py update-status
    ```
 
+   If you manually edit guardrails, trackers, or `state.json`, resync the
+   project-local context plane with:
+
+   ```bash
+   python .timely-playbook/bin/orchestrator.py context-sync
+   ```
+
 2. Update the canonical local files under `.timely-playbook/local/`, especially
    `AGENTS.md`, `SKILLS.md`, trackers, and any repo-specific workflow/task
    settings before pushing.
@@ -114,6 +158,7 @@ python -m unittest discover -s .timely-core/tests -p 'test_*.py'
 bash .timely-playbook/bin/run-markdownlint.sh
 bash .timely-playbook/bin/check-doc-links.sh
 bash .timely-playbook/bin/chub.sh validate
+python .timely-playbook/bin/orchestrator.py context-sync
 ```
 
 Re-run `npm ci --prefix .timely-playbook/runtime` only if the seeded runtime

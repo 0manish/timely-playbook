@@ -61,6 +61,10 @@ bash .timely-playbook/bin/timely-playbook seed \
   --init-git
 popd >/dev/null
 
+pushd "${OUTPUT_DIR}" >/dev/null
+python .timely-playbook/bin/orchestrator.py context-sync >/dev/null
+popd >/dev/null
+
 if [ -f "${OUTPUT_DIR}/timely-playbook.yaml" ]; then
   echo "smoke failed: legacy timely-playbook.yaml should not be present"
   exit 1
@@ -101,6 +105,11 @@ if [ ! -f "${OUTPUT_DIR}/.timely-playbook/bin/install-agent-skill.sh" ]; then
   exit 1
 fi
 
+if [ ! -f "${OUTPUT_DIR}/.timely-playbook/bin/bootstrap-timely-release.sh" ]; then
+  echo "smoke failed: release bootstrap script missing"
+  exit 1
+fi
+
 if [ ! -f "${OUTPUT_DIR}/.timely-playbook/bin/install-codex-skill.sh" ]; then
   echo "smoke failed: Codex compatibility skill installer missing"
   exit 1
@@ -131,6 +140,16 @@ if [ ! -f "${OUTPUT_DIR}/.timely-playbook/config.yaml" ]; then
   exit 1
 fi
 
+if [ ! -f "${OUTPUT_DIR}/.timely-playbook/local/.cxdb/cxdb.sqlite3" ]; then
+  echo "smoke failed: CXDB store missing after context sync"
+  exit 1
+fi
+
+if [ ! -f "${OUTPUT_DIR}/.timely-playbook/local/.leann/index.json" ]; then
+  echo "smoke failed: LEANN index missing after context sync"
+  exit 1
+fi
+
 if [ ! -f "${OUTPUT_DIR}/.chub/config.yaml" ]; then
   echo "smoke failed: chub config was not prepared by default"
   exit 1
@@ -143,6 +162,11 @@ fi
 
 if [ ! -f "${OUTPUT_DIR}/.gitignore" ]; then
   echo "smoke failed: root .gitignore missing"
+  exit 1
+fi
+
+if [ ! -f "${OUTPUT_DIR}/.github/workflows/release.yml" ]; then
+  echo "smoke failed: root release workflow missing"
   exit 1
 fi
 

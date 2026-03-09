@@ -323,7 +323,13 @@ func placeholderReplacements(cfg playbookConfig) map[string]string {
 func copyCoreSnapshot(source sourceLayout, outputCore, relOutput string, includeLogs, keepPlaceholders bool, replacements map[string]string) error {
 	if source.Relocated {
 		return copyTree(source.CoreRoot, outputCore, keepPlaceholders, replacements, func(rel string, d fs.DirEntry) bool {
-			return rel != "manifest.json"
+			if rel == "manifest.json" {
+				return false
+			}
+			if rel == "cmd/dist" || strings.HasPrefix(rel, "cmd/dist/") {
+				return false
+			}
+			return true
 		})
 	}
 
@@ -371,6 +377,8 @@ func copyEditableLocal(source sourceLayout, outputLocal string, keepPlaceholders
 	selected := []string{
 		"AGENTS.md",
 		"SKILLS.md",
+		".cxdb",
+		".leann",
 		".orchestrator",
 		"timely-trackers",
 		"skills/chub-context-hub",
@@ -427,14 +435,34 @@ func copySelectedPath(sourceBase, targetBase, rel string, keepPlaceholders bool,
 		return err
 	}
 	if info.IsDir() {
-		return copyTree(srcPath, filepath.Join(targetBase, filepath.FromSlash(rel)), keepPlaceholders, replacements, func(rel string, d fs.DirEntry) bool {
-			if strings.HasPrefix(filepath.ToSlash(filepath.Join(filepath.ToSlash(rel), "")), ".orchestrator/upstream") {
+		return copyTree(srcPath, filepath.Join(targetBase, filepath.FromSlash(rel)), keepPlaceholders, replacements, func(childRel string, d fs.DirEntry) bool {
+			fullRel := filepath.ToSlash(filepath.Join(filepath.ToSlash(rel), filepath.ToSlash(childRel)))
+			childRel = filepath.ToSlash(childRel)
+			if childRel == "upstream" || strings.HasPrefix(childRel, "upstream/") {
+				return false
+			}
+			if shouldExcludeGeneratedLocalState(fullRel) {
 				return false
 			}
 			return true
 		})
 	}
+	if shouldExcludeGeneratedLocalState(rel) {
+		return nil
+	}
 	return copyFile(srcPath, filepath.Join(targetBase, filepath.FromSlash(rel)), keepPlaceholders, replacements)
+}
+
+func shouldExcludeGeneratedLocalState(rel string) bool {
+	rel = filepath.ToSlash(rel)
+	base := filepath.Base(rel)
+	if strings.HasPrefix(rel, ".cxdb/") || strings.HasPrefix(rel, ".leann/") {
+		if strings.HasSuffix(base, ".sqlite3") || strings.HasSuffix(base, ".sqlite3-shm") || strings.HasSuffix(base, ".sqlite3-wal") {
+			return true
+		}
+		return rel == ".leann/index.json"
+	}
+	return false
 }
 
 func copyTree(srcRoot, dstRoot string, keepPlaceholders bool, replacements map[string]string, include func(rel string, d fs.DirEntry) bool) error {
@@ -494,6 +522,7 @@ func writeLaunchers(root string) error {
 		filepath.Join(workspace.BinDir, "timely-playbook"):              timelyPlaybookLauncher(),
 		filepath.Join(workspace.BinDir, "chub.sh"):                      launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/chub.sh\" \"$@\""),
 		filepath.Join(workspace.BinDir, "chub-mcp.sh"):                  launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/chub-mcp.sh\" \"$@\""),
+		filepath.Join(workspace.BinDir, "bootstrap-timely-release.sh"):  launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/bootstrap-timely-release.sh\" \"$@\""),
 		filepath.Join(workspace.BinDir, "bootstrap-timely-template.sh"): launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/bootstrap-timely-template.sh\" \"$@\""),
 		filepath.Join(workspace.BinDir, "bootstrap-smoke.sh"):           launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/bootstrap-smoke.sh\" \"$@\""),
 		filepath.Join(workspace.BinDir, "run-markdownlint.sh"):          launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/run-markdownlint.sh\" \"$@\""),
@@ -517,8 +546,21 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CACHE_DIR="$ROOT_DIR/.timely-playbook/runtime/cache"
 BIN_PATH="$CACHE_DIR/timely-playbook"
+GLOBAL_BIN="$(type -P timely-playbook || true)"
+SELF_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+
+if ! command -v go >/dev/null 2>&1; then
+  if [[ -n "$GLOBAL_BIN" && "$GLOBAL_BIN" != "$SELF_PATH" ]]; then
+    cd "$ROOT_DIR"
+    exec "$GLOBAL_BIN" "$@"
+  fi
+  echo "error: install Go 1.22+ or place timely-playbook on PATH" >&2
+  exit 1
+fi
+
 mkdir -p "$CACHE_DIR"
 (cd "$ROOT_DIR/.timely-core/cmd/timely-playbook" && go build -o "$BIN_PATH" .)
+cd "$ROOT_DIR"
 exec "$BIN_PATH" "$@"
 `) + "\n"
 }
@@ -678,132 +720,25 @@ func writeRootStubs(root string) error {
 }
 
 func writeRootWorkflowDispatchers(source sourceLayout, outputRoot string) error {
-	ci := strings.TrimSpace(`
-name: CI
-
-on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-  workflow_dispatch:
-  schedule:
-    - cron: '0 2 * * 0'
-
-jobs:
-  verify:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.22.0'
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-      - name: Install Python deps
-        run: |
-          pip install -r .timely-core/requirements.txt
-      - name: Install Timely runtime deps
-        run: |
-          npm ci --prefix .timely-playbook/runtime
-      - name: Run orchestrator status refresh
-        run: |
-          python .timely-playbook/bin/orchestrator.py update-status
-      - name: Validate repository
-        run: |
-          go test ./.timely-core/cmd/timely-playbook/...
-          python -m unittest discover -s .timely-core/tests -p 'test_*.py'
-          bash .timely-playbook/bin/chub.sh validate
-          bash .timely-playbook/bin/run-markdownlint.sh
-          bash .timely-playbook/bin/check-doc-links.sh
-      - name: Package template
-        run: |
-          bash .timely-playbook/bin/timely-playbook package --output dist/timely-template --templated
-      - name: Bootstrap smoke test
-        run: |
-          bash .timely-playbook/bin/bootstrap-smoke.sh --smoke
-`) + "\n"
-
-	autofix := strings.TrimSpace(`
-name: Agent Autofix
-
-on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
-
-jobs:
-  autofix:
-    if: >-
-      github.event.workflow_run.conclusion == 'failure'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ github.event.workflow_run.head_repository.full_name }}
-          ref: ${{ github.event.workflow_run.head_branch }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.22.0'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-      - name: Install tooling
-        run: |
-          npm ci --prefix .timely-playbook/runtime
-          pip install -r .timely-core/requirements.txt
-      - name: Attempt configured agent repair
-        if: ${{ vars.TIMELY_AUTOFIX_COMMAND != '' }}
-        env:
-          TIMELY_AUTOFIX_COMMAND: ${{ vars.TIMELY_AUTOFIX_COMMAND }}
-        run: |
-          bash -lc "$TIMELY_AUTOFIX_COMMAND"
-      - name: Attempt Codex repair
-        if: ${{ vars.TIMELY_AUTOFIX_COMMAND == '' && (vars.TIMELY_AUTOFIX_PROVIDER == '' || vars.TIMELY_AUTOFIX_PROVIDER == 'codex') }}
-        uses: openai/codex-autofix-action@v1
-        with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          workdir: '.'
-          instructions: >-
-            CI failed. Read the logs, repair the issue, and open a PR describing
-            the fix. Obey ownership rules in .timely-playbook/local/.orchestrator/ownership.yaml.
-      - name: Provider hook missing
-        if: ${{ vars.TIMELY_AUTOFIX_COMMAND == '' && vars.TIMELY_AUTOFIX_PROVIDER != '' && vars.TIMELY_AUTOFIX_PROVIDER != 'codex' }}
-        run: |
-          echo "TIMELY_AUTOFIX_PROVIDER='${{ vars.TIMELY_AUTOFIX_PROVIDER }}' is set,"
-          echo "but no TIMELY_AUTOFIX_COMMAND repository variable is configured."
-          echo "Add a provider-specific repair command or clear TIMELY_AUTOFIX_PROVIDER to use Codex."
-          exit 1
-`) + "\n"
-
-	for _, item := range []struct {
-		path    string
-		content string
-	}{
-		{path: filepath.Join(outputRoot, ".github", "workflows", "ci.yml"), content: ci},
-		{path: filepath.Join(outputRoot, ".github", "workflows", "autofix.yml"), content: autofix},
-	} {
-		if err := os.MkdirAll(filepath.Dir(item.path), 0o755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(item.path, []byte(item.content), 0o644); err != nil {
-			return err
-		}
+	workflowSourceDir := filepath.Join(source.LocalRoot, ".github", "workflows")
+	if !source.Relocated {
+		workflowSourceDir = filepath.Join(source.Root, ".github", "workflows")
 	}
-
-	_ = source
-	return nil
+	if !pathExists(workflowSourceDir) {
+		return nil
+	}
+	return copyTree(
+		workflowSourceDir,
+		filepath.Join(outputRoot, ".github", "workflows"),
+		true,
+		nil,
+		func(rel string, d fs.DirEntry) bool {
+			if d.IsDir() {
+				return true
+			}
+			return strings.HasSuffix(rel, ".yml") || strings.HasSuffix(rel, ".yaml")
+		},
+	)
 }
 
 func writeRootTaskDispatcher(source sourceLayout, outputRoot string) error {
@@ -864,9 +799,9 @@ func writeCoreManifest(coreDir, sourceRoot string) error {
 	manifest := coreManifest{
 		SchemaVersion: 1,
 		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
-		SourceRoot:    sourceRoot,
-		SourceCommit:  gitCommit(sourceRoot),
-		Files:         files,
+		// Keep the manifest portable; do not leak the builder's local filesystem.
+		SourceRoot: ".",
+		Files:      files,
 	}
 	data, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
