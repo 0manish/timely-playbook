@@ -13,4 +13,3 @@ exports. Rebuild or refresh local state with:
 ```bash
 python .timely-playbook/bin/orchestrator.py context-sync
 ```
-
