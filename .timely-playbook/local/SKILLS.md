@@ -4,6 +4,8 @@ This file defines two Timely skill surfaces:
 - KISS-derived overlay profiles accepted in direct agent CLI runs and
   `fullstack-*` orchestrator flows
 - Repo-local agent skill bundles shipped under `.timely-playbook/local/skills/`
+- Generalized agent-harness governance for keeping `AGENTS.md`, `SKILLS.md`,
+  ownership policy, trackers, and reusable skill bundles synchronized
 
 ## A-E adoption map (used by fullstack runs)
 
@@ -34,7 +36,12 @@ This file defines two Timely skill surfaces:
   `.timely-playbook/local/skills/chub-context-hub/SKILL.md` for repo-local
   `chub`/`chub-mcp` usage, Timely mirror validation, and public API doc
   retrieval through Context Hub.
-- Install with `bash .timely-playbook/bin/install-agent-skill.sh chub-context-hub`.
+- `agent-harness-governance`: repo-local agent skill bundle at
+  `.timely-playbook/local/skills/agent-harness-governance/SKILL.md` for
+  generalized agent maps, skill registry maintenance, tracker evidence, and
+  doc-gardening loops.
+- Install with `bash .timely-playbook/bin/install-agent-skill.sh <skill-name>`,
+  for example `chub-context-hub` or `agent-harness-governance`.
 - Installed copies are intended to be used while the agent is operating from a
   Timely-seeded repo root so the skill can call
   `bash .timely-playbook/bin/chub.sh ...`.
@@ -61,6 +68,12 @@ This file defines two Timely skill surfaces:
   "version": 1,
   "default_skill": "kiss-fullstack-core",
   "repo_local_skills": {
+    "agent-harness-governance": {
+      "path": ".timely-playbook/local/skills/agent-harness-governance/SKILL.md",
+      "description": "Repo-local agent skill for generalized AGENTS/SKILLS governance, tracker evidence, ownership policy, and doc-gardening loops.",
+      "install_command": "bash .timely-playbook/bin/install-agent-skill.sh agent-harness-governance",
+      "supports_fullstack": false
+    },
     "chub-context-hub": {
       "path": ".timely-playbook/local/skills/chub-context-hub/SKILL.md",
       "description": "Repo-local agent skill for chub wrappers, Timely mirror validation, and Context Hub MCP setup.",

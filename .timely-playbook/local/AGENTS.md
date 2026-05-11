@@ -21,6 +21,23 @@
 - Any behavior not covered by this stack is disallowed by default in automation
   runs.
 
+## Agent harness knowledge map
+
+- Treat `AGENTS.md` as the repository map for agent behavior, not as a full
+  project manual.
+- Treat `SKILLS.md` as the skill and overlay registry. Update it whenever a
+  repo-local skill bundle is added, removed, renamed, or re-scoped.
+- Treat `.timely-playbook/local/skills/*/SKILL.md` as reusable workflow
+  procedures. Do not use skills for one-off task acceptance criteria.
+- Treat `.timely-playbook/local/timely-trackers/*` as the evidence surface for
+  validation runs, requirement traceability, ledger decisions, and follow-up
+  backlog items.
+- Treat `.timely-core/` as template core. Edit it only when the active task
+  explicitly changes the shipped template core or release package.
+- When review feedback, failed validation, or recurring ambiguity appears,
+  promote it into a tracker row, ownership rule, skill step, template update, or
+  mechanical check instead of relying on chat history.
+
 ## Operator & contact
 
 - **Primary operator:** Smoke Test (`smoke@example.com`)
@@ -75,6 +92,9 @@
 - Keep the navigation hub (`.timely-core/Timely-Governance-Index.md`), tracker
   guidance (`.timely-core/Timely-Governance-Trackers.md`), and flowgraph
   (`.timely-core/Timely-Flowgraph.md`) current as new assets land.
+- Keep generalized agent and skill governance synchronized between this file,
+  `SKILLS.md`, `.timely-playbook/local/skills/*/SKILL.md`, and the governance
+  trackers.
 
 ## PR & review checklist
 
@@ -136,6 +156,9 @@
 - 2026-03-09 – Added CXDB and LEANN as the default project-local context plane
   while keeping `.timely-core/` read-only and `state.json` as the portable
   export.
+- 2026-05-11 – Added generalized agent harness governance so seeded repos can
+  maintain agent maps, skill registries, trackers, and doc-gardening loops
+  without project-specific assumptions.
 
 ## Template purpose
 
@@ -221,6 +244,9 @@
 - `bash .timely-playbook/bin/chub.sh` and
   `bash .timely-playbook/bin/chub-mcp.sh` — repo-local Context Hub CLI/MCP
   wrappers.
+- `bash .timely-playbook/bin/install-agent-skill.sh agent-harness-governance`
+  — installs the generalized agent and skill governance workflow into the
+  configured agent skill directory.
 - Default autofix secret: add or update `OPENAI_API_KEY` so the shipped Codex
   autofix path can run. Custom providers should add the secrets required by
   their `TIMELY_AUTOFIX_COMMAND`.

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Agent Harness Governance"
+  short_description: "Maintain Timely agent maps, skills, trackers, and doc-gardening loops"

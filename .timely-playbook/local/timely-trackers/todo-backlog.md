@@ -24,6 +24,7 @@
 | Medium | Review `.chub/timely-mirror-metadata.json` after each `@aisuite/chub` version change and log any downstream compatibility implications | Context-Hub-Integration.md | Smoke Test | 2026-03-21 | Todo |
 | Medium | Add a lightweight pre-release scan that flags downstream-specific examples before packaging | MasterPlan.md | Smoke Test | 2026-03-21 | Todo |
 | Medium | Add one fully documented non-Codex provider example and record the operator steps for `fullstack-run --provider` plus `TIMELY_AUTOFIX_COMMAND` | TimelyPlaybook.md | Smoke Test | 2026-03-28 | Todo |
+| Medium | Add a registry completeness check that flags missing `SKILLS.md` entries for `.timely-playbook/local/skills/*/SKILL.md` bundles | SKILLS.md | Smoke Test | 2026-05-18 | Todo |
 
 ## Backlog Candidates
 - Roll out a CI job to validate Mermaid rendering on pull requests.

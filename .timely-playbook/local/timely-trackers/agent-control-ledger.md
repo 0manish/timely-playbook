@@ -39,6 +39,7 @@
 | 9 | Self-migrate the authoring repository so source, docs, and automation all use the relocated layout. | Tasks 1-8 | TimelyPlaybook.md | 2026-03-07 | Done |
 | 10 | Add CXDB and LEANN as the default project-local context plane while preserving packaged template portability. | Tasks 1-9 | CXDB-LEANN-Integration.md | 2026-03-09 | Done |
 | 11 | Publish release-ready CLI binaries and a packaged-template bootstrap flow so end users can install Timely without a source checkout. | Tasks 1-10 | TimelyPlaybook.md | 2026-03-09 | Done |
+| 12 | Generalize agent and skill governance into a reusable harness skill and registry pattern. | Tasks 1-11 | AGENTS.md; SKILLS.md | 2026-05-11 | Done |
 
 ## Quality Gates
 - **Required tests:** `make validate`, `make compile`, and
@@ -79,3 +80,4 @@
 | 2026-03-07 | Self-migrate the authoring repository to the relocated `.timely-core/` plus `.timely-playbook/` layout so source and generated repos match. | TimelyPlaybook.md | Smoke Test |
 | 2026-03-09 | Adopt CXDB and LEANN as the default project-local context plane, with `.timely-core/` staying read-only and generated project state living under `.timely-playbook/local/`. | CXDB-LEANN-Integration.md | Smoke Test |
 | 2026-03-09 | Standardize distribution on GitHub release assets: platform Go binaries, `timely-template.tgz`, checksums, and a bootstrap script that seeds new repos from the published template. | TimelyPlaybook.md | Smoke Test |
+| 2026-05-11 | Add generalized agent harness governance so Timely-seeded repos can maintain AGENTS/SKILLS maps, repo-local skill bundles, tracker evidence, and doc-gardening loops without project-specific assumptions. | AGENTS.md; SKILLS.md | Smoke Test |

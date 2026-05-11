@@ -95,6 +95,7 @@ only if you clear the seeded runtime dependencies.
 - `bash .timely-playbook/bin/chub.sh build`
 - `bash .timely-playbook/bin/chub.sh validate`
 - `bash .timely-playbook/bin/install-agent-skill.sh chub-context-hub`
+- `bash .timely-playbook/bin/install-agent-skill.sh agent-harness-governance`
 
 Context Hub is prebuilt during seed by default, and then stays on-demand. It
 does not run silently in the background. Use `bash .timely-playbook/bin/chub.sh
