@@ -40,8 +40,13 @@ This file defines two Timely skill surfaces:
   `.timely-playbook/local/skills/agent-harness-governance/SKILL.md` for
   generalized agent maps, skill registry maintenance, tracker evidence, and
   doc-gardening loops.
+- `project-agent-harness`: repo-local agent skill bundle at
+  `.timely-playbook/local/skills/project-agent-harness/SKILL.md` for
+  reusable project-agnostic role templates and lightweight harness consistency
+  checks.
 - Install with `bash .timely-playbook/bin/install-agent-skill.sh <skill-name>`,
-  for example `chub-context-hub` or `agent-harness-governance`.
+  for example `chub-context-hub`, `agent-harness-governance`, or
+  `project-agent-harness`.
 - Installed copies are intended to be used while the agent is operating from a
   Timely-seeded repo root so the skill can call
   `bash .timely-playbook/bin/chub.sh ...`.
@@ -68,6 +73,12 @@ This file defines two Timely skill surfaces:
   "version": 1,
   "default_skill": "kiss-fullstack-core",
   "repo_local_skills": {
+    "project-agent-harness": {
+      "path": ".timely-playbook/local/skills/project-agent-harness/SKILL.md",
+      "description": "Generic, project-agnostic role templates and harness checks for seeded repos.",
+      "install_command": "bash .timely-playbook/bin/install-agent-skill.sh project-agent-harness",
+      "supports_fullstack": false
+    },
     "agent-harness-governance": {
       "path": ".timely-playbook/local/skills/agent-harness-governance/SKILL.md",
       "description": "Repo-local agent skill for generalized AGENTS/SKILLS governance, tracker evidence, ownership policy, and doc-gardening loops.",

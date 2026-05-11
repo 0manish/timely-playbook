@@ -177,6 +177,7 @@ func TestPackageTemplatePreservesBootstrapAssetsAndSupportsInjectedPackaging(t *
 		".timely-playbook/config.yaml",
 		".timely-core/manifest.json",
 		".gitignore",
+		".agents/README.md",
 		"README.md",
 		"AGENTS.md",
 		"SKILLS.md",

@@ -381,6 +381,9 @@ func copyEditableLocal(source sourceLayout, outputLocal string, keepPlaceholders
 		".leann",
 		".orchestrator",
 		"timely-trackers",
+		"agent-harness",
+		"skills/agent-harness-governance",
+		"skills/project-agent-harness",
 		"skills/chub-context-hub",
 		".github/workflows",
 		".vscode/tasks.json",
@@ -662,6 +665,19 @@ func rootReadmeContent(root string) (string, error) {
 	return rewriteRootReadmeLinks(string(data)), nil
 }
 
+func agentsRosterReadmeContent(root string) (string, error) {
+	workspace := resolveWorkspace(root)
+	templatePath := filepath.Join(workspace.CoreDir, "templates", "agents-readme-template.md")
+	data, err := os.ReadFile(templatePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "# Agent roster\n\nNo project-local agents are registered yet.\n", nil
+		}
+		return "", err
+	}
+	return string(data), nil
+}
+
 func rewriteRootReadmeLinks(content string) string {
 	return markdownLinkPattern.ReplaceAllStringFunc(content, func(match string) string {
 		target := markdownLinkPattern.FindStringSubmatch(match)[1]
@@ -706,12 +722,20 @@ func writeRootStubs(root string) error {
 	if err != nil {
 		return err
 	}
+	agentsReadme, err := agentsRosterReadmeContent(root)
+	if err != nil {
+		return err
+	}
 	stubs := map[string]string{
-		filepath.Join(root, "README.md"): rootReadme,
-		filepath.Join(root, "AGENTS.md"): "# Timely Playbook governance stub\n\nCanonical content: `.timely-playbook/local/AGENTS.md`.\n",
-		filepath.Join(root, "SKILLS.md"): "# Timely Playbook skill registry stub\n\nCanonical content: `.timely-playbook/local/SKILLS.md`.\n",
+		filepath.Join(root, "README.md"):            rootReadme,
+		filepath.Join(root, "AGENTS.md"):            "# Timely Playbook governance stub\n\nCanonical content: `.timely-playbook/local/AGENTS.md`.\n",
+		filepath.Join(root, "SKILLS.md"):            "# Timely Playbook skill registry stub\n\nCanonical content: `.timely-playbook/local/SKILLS.md`.\n",
+		filepath.Join(root, ".agents", "README.md"): agentsReadme,
 	}
 	for path, content := range stubs {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			return err
 		}

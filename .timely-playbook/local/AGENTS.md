@@ -29,6 +29,14 @@
   repo-local skill bundle is added, removed, renamed, or re-scoped.
 - Treat `.timely-playbook/local/skills/*/SKILL.md` as reusable workflow
   procedures. Do not use skills for one-off task acceptance criteria.
+- Treat `.timely-playbook/local/agent-harness/roles/*.md` as the generic role
+  template set for reusable harness operations.
+- Run `.timely-playbook/local/agent-harness/tools/check_agent_harness.py` as a
+  minimal pre-merge harness-consistency check when agent maps or skill
+  registries are changed.
+- For seeded repos that include `.agents/agents/*.md`, treat
+  `.timely-playbook/local/agent-harness/templates/agents-readme-sync.md` as the
+  canonical template for `.agents/README.md` and keep it synchronized.
 - Treat `.timely-playbook/local/timely-trackers/*` as the evidence surface for
   validation runs, requirement traceability, ledger decisions, and follow-up
   backlog items.
@@ -114,6 +122,12 @@
 - Trigger `bash .timely-playbook/bin/check-doc-links.sh` via CI
   (`.github/workflows/ci.yml`) or MCP when doc changes land; if the script
   fails, document remediation steps in the backlog and update the ledger status.
+- For projects using `.agents/agents` rosters, validate roster synchronization by
+  running `.timely-playbook/local/agent-harness/tools/check_agent_harness.py` and
+  ensure `.agents/README.md` follows the template mapping.
+- Add `.timely-playbook/local/agent-harness/tools/check_agent_harness.py` to
+  lightweight harness verification where repo-local agent maps and role templates
+  are updated.
 - Use `timely-playbook append journal` when recording documentation validation
   runs to avoid manual table edits.
 - When `@aisuite/chub` changes or Context Hub behavior shifts, review the

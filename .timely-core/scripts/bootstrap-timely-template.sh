@@ -216,8 +216,23 @@ if [[ ! -f "${OUTPUT}/SKILLS.md" ]]; then
   exit 1
 fi
 
+if [[ ! -f "${OUTPUT}/.agents/README.md" ]]; then
+  echo "error: seeded repository is missing .agents/README.md"
+  exit 1
+fi
+
 if [[ ! -f "${OUTPUT}/.timely-playbook/local/skills/chub-context-hub/SKILL.md" ]]; then
   echo "error: seeded repository is missing the Context Hub skill bundle"
+  exit 1
+fi
+
+if [[ ! -f "${OUTPUT}/.timely-playbook/local/skills/project-agent-harness/SKILL.md" ]]; then
+  echo "error: seeded repository is missing the project agent harness skill bundle"
+  exit 1
+fi
+
+if [[ ! -f "${OUTPUT}/.timely-playbook/local/agent-harness/templates/agents-readme-sync.md" ]]; then
+  echo "error: seeded repository is missing the agent roster README sync template"
   exit 1
 fi
 
