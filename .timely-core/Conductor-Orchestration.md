@@ -1,8 +1,9 @@
 # Conductor orchestration blueprint
 
 Use this document to roll the Timely Playbook template into an agent-ready,
-multi-agent workspace. Codex is the shipped default path, but the surrounding
-orchestrator and governance flow are designed to admit other providers.
+multi-agent workspace. `codex_symphony` is the shipped default stack, but the
+surrounding orchestrator and governance flow are designed to admit other
+providers and other orchestration stacks.
 
 ## Target architecture
 
@@ -11,9 +12,11 @@ orchestrator and governance flow are designed to admit other providers.
   mode, subagents, and Agent HQ to triage work, delegate tasks, and review
   diffs in real time.
 - **Automation plane:** `python .timely-playbook/bin/orchestrator.py` plus the
-  OpenAI Agents SDK (optional) execute deterministic workflows: parsing goals,
-  spinning up specialist agents, editing files, tagging Git branches, and
-  calling CI/CD APIs.
+  configured stack execute deterministic workflows: parsing goals, spinning up
+  specialist agents, editing files, tagging Git branches, and calling CI/CD
+  APIs. Timely’s default stack is `codex_symphony`, but projects can switch to
+  direct CLI or other provider-backed stacks in
+  `.timely-playbook/local/.orchestrator/fullstack-agent.json`.
 - **Shared context:** `.timely-playbook/local/.cxdb/cxdb.sqlite3` stores the
   canonical project-local context, `.timely-playbook/local/.leann/index.json`
   serves retrieval, and `.timely-playbook/local/.orchestrator/state.json` plus
@@ -24,7 +27,8 @@ orchestrator and governance flow are designed to admit other providers.
 
 1. Install the VS Code extension or CLI for the agent provider you plan to use.
 2. Configure `.timely-playbook/local/.orchestrator/fullstack-agent.json` so the
-   orchestrator can call that provider. The shipped default is `codex`.
+   orchestrator can resolve both the stack and the execution provider. The
+   shipped default is `codex_symphony`.
 3. Install Python 3.11+ with the OpenAI Agents SDK (or plain `requests` for the
    included helper scripts).
 4. Install Node `22.22.0+` (22.x), then run
@@ -47,6 +51,11 @@ orchestrator and governance flow are designed to admit other providers.
 - `.timely-playbook/local/.cxdb/cxdb.sqlite3` maintains the canonical tasks,
   dependencies, CI events, deployment decisions, and local context documents for
   the conductor.
+- `.timely-playbook/local/.orchestrator/fullstack-agent.json` defines stack,
+  provider, and adapter registries. `codex_symphony` is the shipped default.
+  If `adapters.symphony.submit_command` is configured, Timely submits work to an
+  external Symphony service; otherwise it falls back to local provider
+  execution.
 - `.timely-playbook/local/.orchestrator/state.json` remains a portable
   import/export snapshot for seeded repos and manual edits.
 - `.timely-playbook/local/.orchestrator/STATUS.md` offers a human-friendly
@@ -81,7 +90,8 @@ orchestrator and governance flow are designed to admit other providers.
 - The conductor launcher (`python .timely-playbook/bin/orchestrator.py`) acts
   as the mission control layer. It delegates into
   `.timely-core/tools/orchestrator/orchestrator.py`, uses Agents SDK patterns
-  to call the configured provider via CLI or MCP, orchestrates git actions (see
+  to call the configured provider via CLI or MCP, maps stack-level policy such
+  as `symphony` versus `direct_cli`, orchestrates git actions (see
   `.timely-core/tools/orchestrator/helpers/git_tools.py`), and records CI
   telemetry (`.timely-core/tools/orchestrator/helpers/ci_tools.py`).
 
@@ -200,6 +210,11 @@ Run this flow to execute a reusable full-stack build pipeline inspired by arXiv
 1. Either run phases one-by-one with `fullstack-run`, or execute
    `python .timely-playbook/bin/orchestrator.py fullstack-run-all <project_id>`.
 1. Optional strict profile runs can pass `--skill` to use `SKILLS.md` overlays.
+1. Optional stack overrides can pass `--stack` to switch between
+   `codex_symphony`, `codex_cli`, or project-defined alternatives.
+1. When a Symphony-backed stack dispatches work externally, reconcile phase
+   completion with `python .timely-playbook/bin/orchestrator.py
+   fullstack-reconcile <project_id> <phase_id> done|failed`.
 1. If running one-by-one, execute: `architecture`, `backend`, `frontend`,
    `integration`, `backtranslation`.
 1. `python .timely-playbook/bin/orchestrator.py fullstack-status <project_id>`
@@ -217,6 +232,11 @@ Reference: `FullStack-Agent-Integration.md`.
     (`.timely-core/tools/orchestrator/helpers/agent_tools.py`).
   - Using CXDB as deterministic project memory, with exported state files for
     portability between Agents SDK runs and VS Code sessions.
+  - Treating Symphony as one orchestration mode rather than a Timely-specific
+    hard dependency, so seeded repos can swap to Claude or open-source stacks
+    without changing Timely’s core governance contract.
+  - Using `autofix-config` and `autofix-dispatch` so CI/autofix flows resolve
+    the same stack and adapter settings as interactive phase runs.
 
 ## Next steps
 

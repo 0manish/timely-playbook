@@ -32,14 +32,61 @@ jobs:
         run: |
           npm ci --prefix .timely-playbook/runtime
           pip install -r .timely-core/requirements.txt
+      - name: Resolve Timely stack
+        id: timely-stack
+        env:
+          TIMELY_AUTOFIX_STACK: ${{ vars.TIMELY_AUTOFIX_STACK }}
+          TIMELY_AUTOFIX_PROVIDER: ${{ vars.TIMELY_AUTOFIX_PROVIDER }}
+        run: |
+          python .timely-playbook/bin/orchestrator.py autofix-config \
+            ${TIMELY_AUTOFIX_STACK:+--stack "$TIMELY_AUTOFIX_STACK"} \
+            ${TIMELY_AUTOFIX_PROVIDER:+--provider "$TIMELY_AUTOFIX_PROVIDER"} \
+            > /tmp/timely-autofix-config.json
+          python - <<'PY'
+          import json
+          import os
+          data = json.load(open("/tmp/timely-autofix-config.json", encoding="utf-8"))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              for key in (
+                  "stack",
+                  "provider",
+                  "adapter",
+                  "orchestration_mode",
+              ):
+                  handle.write(f"{key}={data[key]}\n")
+              handle.write(f"adapter_configured={'true' if data['adapter_configured'] else 'false'}\n")
+              handle.write(f"adapter_fallback_to_provider={'true' if data['adapter_fallback_to_provider'] else 'false'}\n")
+          PY
       - name: Attempt configured agent repair
         if: ${{ vars.TIMELY_AUTOFIX_COMMAND != '' }}
         env:
           TIMELY_AUTOFIX_COMMAND: ${{ vars.TIMELY_AUTOFIX_COMMAND }}
         run: |
           bash -lc "$TIMELY_AUTOFIX_COMMAND"
+      - name: Attempt Symphony handoff
+        if: >-
+          vars.TIMELY_AUTOFIX_COMMAND == '' &&
+          steps.timely-stack.outputs.orchestration_mode == 'symphony' &&
+          steps.timely-stack.outputs.adapter_configured == 'true'
+        env:
+          TIMELY_AUTOFIX_STACK: ${{ vars.TIMELY_AUTOFIX_STACK }}
+          TIMELY_AUTOFIX_PROVIDER: ${{ vars.TIMELY_AUTOFIX_PROVIDER }}
+        run: |
+          python .timely-playbook/bin/orchestrator.py autofix-dispatch \
+            --repo "${{ github.event.workflow_run.head_repository.full_name }}" \
+            --workflow "${{ github.event.workflow_run.name }}" \
+            --head-branch "${{ github.event.workflow_run.head_branch }}" \
+            --run-url "${{ github.event.workflow_run.html_url }}" \
+            ${TIMELY_AUTOFIX_STACK:+--stack "$TIMELY_AUTOFIX_STACK"} \
+            ${TIMELY_AUTOFIX_PROVIDER:+--provider "$TIMELY_AUTOFIX_PROVIDER"}
       - name: Attempt Codex repair
-        if: ${{ vars.TIMELY_AUTOFIX_COMMAND == '' && (vars.TIMELY_AUTOFIX_PROVIDER == '' || vars.TIMELY_AUTOFIX_PROVIDER == 'codex') }}
+        if: >-
+          vars.TIMELY_AUTOFIX_COMMAND == '' &&
+          steps.timely-stack.outputs.provider == 'codex' &&
+          (
+            steps.timely-stack.outputs.orchestration_mode != 'symphony' ||
+            steps.timely-stack.outputs.adapter_configured != 'true'
+          )
         uses: openai/codex-autofix-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -48,9 +95,14 @@ jobs:
             CI failed. Read the logs, repair the issue, and open a PR describing
             the fix. Obey ownership rules in .timely-playbook/local/.orchestrator/ownership.yaml.
       - name: Provider hook missing
-        if: ${{ vars.TIMELY_AUTOFIX_COMMAND == '' && vars.TIMELY_AUTOFIX_PROVIDER != '' && vars.TIMELY_AUTOFIX_PROVIDER != 'codex' }}
+        if: >-
+          vars.TIMELY_AUTOFIX_COMMAND == '' &&
+          (
+            (steps.timely-stack.outputs.orchestration_mode == 'symphony' && steps.timely-stack.outputs.adapter_configured != 'true' && steps.timely-stack.outputs.provider != 'codex') ||
+            (steps.timely-stack.outputs.orchestration_mode != 'symphony' && steps.timely-stack.outputs.provider != 'codex')
+          )
         run: |
-          echo "TIMELY_AUTOFIX_PROVIDER='${{ vars.TIMELY_AUTOFIX_PROVIDER }}' is set,"
-          echo "but no TIMELY_AUTOFIX_COMMAND repository variable is configured."
-          echo "Add a provider-specific repair command or clear TIMELY_AUTOFIX_PROVIDER to use Codex."
+          echo "Timely resolved stack='${{ steps.timely-stack.outputs.stack }}' provider='${{ steps.timely-stack.outputs.provider }}' orchestration_mode='${{ steps.timely-stack.outputs.orchestration_mode }}'."
+          echo "No compatible automated autofix path is configured for that stack."
+          echo "Either set TIMELY_AUTOFIX_COMMAND, configure adapters.symphony.submit_command for Symphony handoff, or switch to Codex for local fallback."
           exit 1

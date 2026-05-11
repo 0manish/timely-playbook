@@ -252,11 +252,32 @@ bash .timely-playbook/bin/timely-playbook run-weekly
   generate a phase plan and sync tasks into the CXDB-backed state store while
   updating `.timely-playbook/local/.orchestrator/state.json`.
 - `python .timely-playbook/bin/orchestrator.py fullstack-run <project_id> <phase_id>
-  [--provider <provider>] [--skill <profile>]` — execute a development phase
-  via the configured agent provider and capture back-translation artifacts.
+  [--stack <stack>] [--provider <provider>] [--skill <profile>]` — execute a
+  development phase via the configured stack and capture back-translation
+  artifacts.
 - `python .timely-playbook/bin/orchestrator.py fullstack-run-all <project_id>
-  [--provider <provider>] [--skill <profile>]` — execute all ready phases
-  sequentially.
+  [--stack <stack>] [--provider <provider>] [--skill <profile>]` — execute all
+  ready phases sequentially.
+- `python .timely-playbook/bin/orchestrator.py fullstack-reconcile <project_id>
+  <phase_id> <state>` — reconcile an externally managed phase result back into
+  Timely state after a Symphony handoff completes.
+- `python .timely-playbook/bin/orchestrator.py autofix-config
+  [--stack <stack>] [--provider <provider>]` — resolve the stack/provider/adapter
+  profile used by the CI autofix workflow.
+- `python .timely-playbook/bin/orchestrator.py autofix-dispatch --repo <repo>
+  --workflow <name> --head-branch <branch> --run-url <url>` — hand a CI fix
+  task to the configured Symphony adapter.
+- `bash .timely-playbook/bin/symphony-submit.sh --payload <path>` — starter
+  repo-local wrapper for external Symphony handoff. Configure
+  `TIMELY_SYMPHONY_SUBMIT` plus `adapters.symphony.submit_command` to use it.
+- `bash .timely-playbook/bin/claude-code-example.sh --workdir <path>` — starter
+  repo-local wrapper for the documented Claude provider example. Configure
+  `TIMELY_CLAUDE_CODE_COMMAND` plus
+  `providers.claude_code_example.exec_command` to use it.
+- `bash .timely-playbook/bin/open-source-agent-example.sh --workdir <path>` —
+  starter repo-local wrapper for the documented open-source provider example.
+  Configure `TIMELY_OPEN_SOURCE_AGENT_COMMAND` plus
+  `providers.open_source_agent_example.exec_command` to use it.
 - `python .timely-playbook/bin/orchestrator.py fullstack-status <project_id>` —
   show phase progress and status counts.
 - `bash .timely-playbook/bin/chub.sh build` — regenerate the Timely Context

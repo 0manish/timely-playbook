@@ -42,7 +42,59 @@ class FullstackIntegrationTests(unittest.TestCase):
                 "title": "FullStack-Agent",
                 "url": "https://arxiv.org/abs/2602.03798",
             },
+            "default_stack": "codex_symphony",
+            "default_provider": "codex",
+            "default_adapter": "symphony",
+            "default_orchestration_mode": "symphony",
             "default_model": "test-model",
+            "adapters": {
+                "symphony": {
+                    "label": "Symphony handoff",
+                    "submit_command": [],
+                    "stdin_payload": "json",
+                    "completion_mode": "async_handoff",
+                    "fallback_to_provider": True,
+                },
+                "direct_cli": {
+                    "label": "Direct CLI execution",
+                    "submit_command": [],
+                    "stdin_payload": "none",
+                    "completion_mode": "sync_exec",
+                    "fallback_to_provider": True,
+                },
+            },
+            "stacks": {
+                "codex_symphony": {
+                    "label": "Codex + Symphony",
+                    "provider": "codex",
+                    "adapter": "symphony",
+                    "orchestration_mode": "symphony",
+                },
+                "codex_cli": {
+                    "label": "Codex CLI",
+                    "provider": "codex",
+                    "adapter": "direct_cli",
+                    "orchestration_mode": "direct_cli",
+                }
+            },
+            "providers": {
+                "codex": {
+                    "label": "Codex CLI",
+                    "stdin_prompt": True,
+                    "exec_command": [
+                        "codex",
+                        "exec",
+                        "--skip-git-repo-check",
+                        "--cd",
+                        "{workdir}",
+                        "--output-last-message",
+                        "{run_dir}/agent-last-message.txt",
+                        "{model_args}",
+                        "-",
+                    ],
+                    "model_arg": ["--model", "{model}"],
+                }
+            },
             "projects_dir": "projects",
             "upstreams": [
                 {
@@ -109,7 +161,10 @@ class FullstackIntegrationTests(unittest.TestCase):
         self.assertTrue(manifest_file.exists())
 
         manifest_payload = json.loads(manifest_file.read_text(encoding="utf-8"))
+        self.assertEqual(manifest_payload["default_stack"], "codex_symphony")
         self.assertEqual(manifest_payload["default_provider"], "codex")
+        self.assertEqual(manifest_payload["default_adapter"], "symphony")
+        self.assertEqual(manifest_payload["default_orchestration_mode"], "symphony")
 
         plan_payload = json.loads(plan_file.read_text(encoding="utf-8"))
         self.assertEqual(plan_payload["phases"][0]["status"], "pending")
@@ -132,10 +187,14 @@ class FullstackIntegrationTests(unittest.TestCase):
             project_id="demo",
             phase_id="architecture",
             model="custom-model",
+            stack="codex_cli",
             dry_run=True,
         )
 
         self.assertEqual(run_result["status"], "dry_run")
+        self.assertEqual(run_result["stack"], "codex_cli")
+        self.assertEqual(run_result["adapter"], "direct_cli")
+        self.assertEqual(run_result["orchestration_mode"], "direct_cli")
         self.assertEqual(run_result["provider"], "codex")
         command = run_result["command"]
         self.assertEqual(command[0], "codex")
@@ -185,6 +244,10 @@ class FullstackIntegrationTests(unittest.TestCase):
         )
 
         self.assertEqual(run_result["status"], "dry_run")
+        self.assertEqual(run_result["stack"], "codex_symphony")
+        self.assertEqual(run_result["adapter"], "symphony")
+        self.assertEqual(run_result["handoff_mode"], "local_fallback")
+        self.assertEqual(run_result["orchestration_mode"], "symphony")
         self.assertEqual(run_result["provider"], "demo-agent")
         command = run_result["command"]
         self.assertEqual(command[0], "demo-agent")
@@ -243,6 +306,10 @@ class FullstackIntegrationTests(unittest.TestCase):
             )
 
         self.assertEqual(run_result["status"], "ok")
+        self.assertEqual(run_result["stack"], "codex_symphony")
+        self.assertEqual(run_result["adapter"], "symphony")
+        self.assertEqual(run_result["handoff_mode"], "local_fallback")
+        self.assertEqual(run_result["orchestration_mode"], "symphony")
         self.assertEqual(run_result["provider"], "demo-agent")
         provider_call = next(entry for entry in calls if entry["cmd"][0] == "demo-agent")
         self.assertIsNone(provider_call["input_text"])
@@ -274,6 +341,67 @@ class FullstackIntegrationTests(unittest.TestCase):
         self.assertEqual(run_all_result["status"], "ok")
         self.assertEqual(len(run_all_result["phase_results"]), 1)
         self.assertEqual(run_all_result["phase_results"][0]["phase"], "architecture")
+
+        status = fullstack.project_status("demo")
+        self.assertEqual(status["phase_counts"]["done"], 1)
+        self.assertEqual(status["default_stack"], "codex_symphony")
+        self.assertEqual(status["default_adapter"], "symphony")
+        self.assertEqual(status["default_orchestration_mode"], "symphony")
+
+    def test_symphony_dispatch_and_reconcile(self) -> None:
+        fullstack.ensure_config()
+        config_path = self.root / ".timely-playbook" / "local" / ".orchestrator" / "fullstack-agent.json"
+        config_payload = json.loads(config_path.read_text(encoding="utf-8"))
+        config_payload["adapters"]["symphony"]["submit_command"] = [
+            "demo-symphony",
+            "submit",
+            "--payload",
+            "{payload_file}",
+        ]
+        config_path.write_text(json.dumps(config_payload, indent=2) + "\n", encoding="utf-8")
+
+        fullstack.bootstrap_project(
+            project_id="demo",
+            brief="Build a project planner",
+            template_id="demo-template",
+        )
+        fullstack.plan_project("demo", register_state=False)
+
+        calls: list[dict[str, object]] = []
+
+        def fake_run(cmd, cwd=None, input_text=None):
+            calls.append({"cmd": cmd, "cwd": cwd, "input_text": input_text})
+            return subprocess.CompletedProcess(
+                args=cmd,
+                returncode=0,
+                stdout="submitted",
+                stderr="",
+            )
+
+        with patch.object(fullstack, "_run_command", side_effect=fake_run):
+            run_result = fullstack.run_phase(
+                project_id="demo",
+                phase_id="architecture",
+            )
+
+        self.assertEqual(run_result["status"], "dispatched")
+        self.assertEqual(run_result["adapter"], "symphony")
+        self.assertEqual(run_result["handoff_mode"], "external_symphony")
+        dispatch_call = calls[0]
+        self.assertEqual(dispatch_call["cmd"][0], "demo-symphony")
+        self.assertIsInstance(dispatch_call["input_text"], str)
+
+        status = fullstack.project_status("demo")
+        self.assertEqual(status["phase_counts"]["in_progress"], 1)
+
+        reconcile_result = fullstack.reconcile_phase(
+            project_id="demo",
+            phase_id="architecture",
+            state="done",
+            summary="External Symphony run completed",
+            external_run_id="sym-123",
+        )
+        self.assertEqual(reconcile_result["phase_state"], "done")
 
         status = fullstack.project_status("demo")
         self.assertEqual(status["phase_counts"]["done"], 1)

@@ -5,8 +5,73 @@
     "title": "FullStack-Agent: Enhancing Agentic Full-Stack Web Coding via Development-Oriented Testing and Repository Back-Translation",
     "url": "https://arxiv.org/abs/2602.03798"
   },
+  "default_stack": "codex_symphony",
   "default_provider": "codex",
+  "default_adapter": "symphony",
+  "default_orchestration_mode": "symphony",
   "default_model": "gpt-5-codex",
+  "adapters": {
+    "direct_cli": {
+      "label": "Direct CLI execution",
+      "submit_command": [],
+      "stdin_payload": "none",
+      "completion_mode": "sync_exec",
+      "fallback_to_provider": true
+    },
+    "symphony": {
+      "label": "Symphony handoff",
+      "submit_command": [],
+      "sample_submit_command": [
+        "bash",
+        ".timely-playbook/bin/symphony-submit.sh",
+        "--payload",
+        "{payload_file}",
+        "--prompt",
+        "{prompt_file}",
+        "--run-dir",
+        "{run_dir}"
+      ],
+      "stdin_payload": "json",
+      "completion_mode": "async_handoff",
+      "fallback_to_provider": true,
+      "notes": [
+        "Set adapters.symphony.submit_command in .timely-playbook/local/.orchestrator/fullstack-agent.json to hand work to an external Symphony service.",
+        "The template ships a starter wrapper at .timely-playbook/bin/symphony-submit.sh; copy sample_submit_command into submit_command to use it.",
+        "The submit command receives a payload file path via {payload_file} and a rendered prompt via {prompt_file}.",
+        "When submit_command is empty, Timely falls back to local provider execution so seeded repos remain runnable."
+      ]
+    }
+  },
+  "stacks": {
+    "codex_symphony": {
+      "label": "Codex + Symphony",
+      "provider": "codex",
+      "adapter": "symphony",
+      "orchestration_mode": "symphony",
+      "description": "Default Timely stack: Symphony-style ticket orchestration with Codex execution."
+    },
+    "codex_cli": {
+      "label": "Codex CLI",
+      "provider": "codex",
+      "adapter": "direct_cli",
+      "orchestration_mode": "direct_cli",
+      "description": "Direct CLI execution without a Symphony control plane."
+    },
+    "claude_symphony_example": {
+      "label": "Claude + Symphony example",
+      "provider": "claude_code_example",
+      "adapter": "symphony",
+      "orchestration_mode": "symphony",
+      "description": "Example stack showing how a project could keep Symphony orchestration while swapping execution to Claude Code."
+    },
+    "open_source_symphony_example": {
+      "label": "Open-source + Symphony example",
+      "provider": "open_source_agent_example",
+      "adapter": "symphony",
+      "orchestration_mode": "symphony",
+      "description": "Example stack showing how a project could keep Symphony orchestration while swapping execution to an open-source agent."
+    }
+  },
   "providers": {
     "codex": {
       "label": "Codex CLI",
@@ -25,6 +90,48 @@
       "model_arg": [
         "--model",
         "{model}"
+      ]
+    },
+    "claude_code_example": {
+      "label": "Claude Code example",
+      "stdin_prompt": true,
+      "exec_command": [],
+      "sample_exec_command": [
+        "bash",
+        ".timely-playbook/bin/claude-code-example.sh",
+        "--workdir",
+        "{workdir}",
+        "{model_args}"
+      ],
+      "model_arg": [
+        "--model",
+        "{model}"
+      ],
+      "notes": [
+        "Example only: copy sample_exec_command into exec_command, then set TIMELY_CLAUDE_CODE_COMMAND in your environment or CI.",
+        "The template ships a starter wrapper at .timely-playbook/bin/claude-code-example.sh.",
+        "Keep stdin_prompt=true if your Claude wrapper reads the rendered prompt from stdin."
+      ]
+    },
+    "open_source_agent_example": {
+      "label": "Open-source agent example",
+      "stdin_prompt": true,
+      "exec_command": [],
+      "sample_exec_command": [
+        "bash",
+        ".timely-playbook/bin/open-source-agent-example.sh",
+        "--workdir",
+        "{workdir}",
+        "{model_args}"
+      ],
+      "model_arg": [
+        "--model",
+        "{model}"
+      ],
+      "notes": [
+        "Example only: copy sample_exec_command into exec_command, then set TIMELY_OPEN_SOURCE_AGENT_COMMAND in your environment or CI.",
+        "The template ships a starter wrapper at .timely-playbook/bin/open-source-agent-example.sh.",
+        "Use the same stack and adapter surfaces if you later switch between local direct CLI and external Symphony handoff."
       ]
     }
   },

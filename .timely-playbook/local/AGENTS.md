@@ -173,12 +173,24 @@
 - 2026-05-11 – Added generalized agent harness governance so seeded repos can
   maintain agent maps, skill registries, trackers, and doc-gardening loops
   without project-specific assumptions.
+- 2026-05-11 – Added orchestration-stack abstraction above provider selection,
+  making `codex_symphony` the shipped default while preserving per-project
+  overrides for Claude or other open-source execution stacks.
+- 2026-05-11 – Added a real Symphony adapter surface, external handoff payloads,
+  reconciliation commands, stack-aware autofix resolution, and documented
+  Claude/open-source example stacks in the shipped defaults.
+- 2026-05-11 – Added a repo-local `symphony-submit.sh` starter wrapper so
+  seeded projects have a concrete external Symphony handoff surface.
+- 2026-05-11 – Added repo-local starter wrappers for the documented Claude and
+  open-source provider examples so seeded projects have concrete execution
+  command shapes, not only placeholder config.
 
 ## Template purpose
 
 - This repository is the base template for orchestrated, agent-ready projects.
-- The shipped provider defaults target Codex, but the orchestrator, CI, and
-  skill flows are designed to be provider-pluggable.
+- The shipped stack default is `codex_symphony`, but the orchestrator, CI, and
+  skill flows are designed to be both provider-pluggable and
+  orchestration-pluggable.
   Seed new repos with `.timely-playbook/bin/bootstrap-timely-template.sh`,
   `timely-playbook seed`, or a packaged `dist/timely-template.tgz` export.
 - Codify new learnings in this repo first, then re-export so downstream
@@ -195,6 +207,12 @@
   events, local context documents, and deployments while
   `.timely-playbook/local/.orchestrator/state.json` remains the portable
   import/export snapshot.
+- `.timely-playbook/local/.orchestrator/fullstack-agent.json` now separates
+  `stacks` from `providers`, so a project can keep Timely’s governance and
+  state model while changing orchestration posture from `codex_symphony` to
+  direct CLI or another provider-backed stack. The same file now also defines
+  `adapters`, including the external Symphony submit-command surface used by
+  fullstack runs and CI autofix handoffs.
 - Root `.vscode/tasks.json` exposes the orchestrator commands (`plan`,
   `start-ready`, `record-ci`, `update-status`, and FullStack commands) so
   agents can run them deterministically.
@@ -227,8 +245,12 @@
 
 ## Fullstack skill execution guardrails
 
-- Default fullstack path remains direct agent CLI execution with optional skill
-  overlay. The shipped config uses Codex until another provider is configured.
+- Default fullstack path remains stack-driven execution with optional skill
+  overlay. The shipped config uses `codex_symphony`; projects may override the
+  stack or provider in `.timely-playbook/local/.orchestrator/fullstack-agent.json`.
+- If `adapters.symphony.submit_command` is set, Timely dispatches a payload to
+  the external service and leaves the phase `in_progress` until
+  `fullstack-reconcile` records the outcome.
 - Any skill run must honor ownership paths and can only widen scope with
   explicit task-level approval.
 - Skilled runs must output actionable verification notes and include any risk or

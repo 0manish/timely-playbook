@@ -530,6 +530,9 @@ func writeLaunchers(root string) error {
 		filepath.Join(workspace.BinDir, "bootstrap-smoke.sh"):           launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/bootstrap-smoke.sh\" \"$@\""),
 		filepath.Join(workspace.BinDir, "run-markdownlint.sh"):          launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/run-markdownlint.sh\" \"$@\""),
 		filepath.Join(workspace.BinDir, "check-doc-links.sh"):           launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/check-doc-links.sh\" \"$@\""),
+		filepath.Join(workspace.BinDir, "claude-code-example.sh"):       launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/claude-code-example.sh\" \"$@\""),
+		filepath.Join(workspace.BinDir, "open-source-agent-example.sh"): launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/open-source-agent-example.sh\" \"$@\""),
+		filepath.Join(workspace.BinDir, "symphony-submit.sh"):           launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/symphony-submit.sh\" \"$@\""),
 		filepath.Join(workspace.BinDir, "install-agent-skill.sh"):       launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/install-agent-skill.sh\" \"$@\""),
 		filepath.Join(workspace.BinDir, "install-codex-skill.sh"):       launcherShell("exec bash \"$ROOT_DIR/.timely-core/scripts/install-codex-skill.sh\" \"$@\""),
 	}

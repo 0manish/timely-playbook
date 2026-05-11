@@ -124,6 +124,7 @@ def fullstack_run(
     phase_id: str,
     model: str | None,
     provider: str | None,
+    stack: str | None,
     dry_run: bool,
     skill: str | None,
 ) -> None:
@@ -132,6 +133,7 @@ def fullstack_run(
         phase_id=phase_id,
         model=model,
         provider=provider,
+        stack=stack,
         dry_run=dry_run,
         skill=skill,
     )
@@ -142,6 +144,7 @@ def fullstack_run_all(
     project_id: str,
     model: str | None,
     provider: str | None,
+    stack: str | None,
     continue_on_failure: bool,
     skill: str | None,
 ) -> None:
@@ -149,6 +152,7 @@ def fullstack_run_all(
         project_id=project_id,
         model=model,
         provider=provider,
+        stack=stack,
         continue_on_failure=continue_on_failure,
         skill=skill,
     )
@@ -157,6 +161,46 @@ def fullstack_run_all(
 
 def fullstack_status(project_id: str) -> None:
     print(json.dumps(fullstack.project_status(project_id=project_id), indent=2))
+
+
+def fullstack_reconcile(
+    project_id: str,
+    phase_id: str,
+    state: str,
+    summary: str | None,
+    external_run_id: str | None,
+) -> None:
+    result = fullstack.reconcile_phase(
+        project_id=project_id,
+        phase_id=phase_id,
+        state=state,
+        summary=summary,
+        external_run_id=external_run_id,
+    )
+    print(json.dumps(result, indent=2))
+
+
+def autofix_config(stack: str | None, provider: str | None) -> None:
+    print(json.dumps(fullstack.resolve_runtime_profile(stack=stack, provider=provider), indent=2))
+
+
+def autofix_dispatch(
+    repo: str,
+    workflow: str,
+    head_branch: str,
+    run_url: str,
+    stack: str | None,
+    provider: str | None,
+) -> None:
+    result = fullstack.dispatch_autofix(
+        repo=repo,
+        workflow=workflow,
+        head_branch=head_branch,
+        run_url=run_url,
+        stack=stack,
+        provider=provider,
+    )
+    print(json.dumps(result, indent=2))
 
 
 def main() -> None:
@@ -214,6 +258,7 @@ def main() -> None:
     fs_run_cmd.add_argument("project_id")
     fs_run_cmd.add_argument("phase_id", help="Phase id from the project plan")
     fs_run_cmd.add_argument("--model", default=None, help="Override model for this phase run")
+    fs_run_cmd.add_argument("--stack", default=None, help="Override orchestration stack for this phase run")
     fs_run_cmd.add_argument("--provider", default=None, help="Override agent provider for this phase run")
     fs_run_cmd.add_argument("--dry-run", action="store_true", help="Render prompt and print command only")
     fs_run_cmd.add_argument("--skill", default=None, help="Optional SKILLS.md overlay name")
@@ -221,6 +266,7 @@ def main() -> None:
     fs_run_all_cmd = sub.add_parser("fullstack-run-all", help="Run all ready phases in sequence")
     fs_run_all_cmd.add_argument("project_id")
     fs_run_all_cmd.add_argument("--model", default=None, help="Override model for all phase runs")
+    fs_run_all_cmd.add_argument("--stack", default=None, help="Override orchestration stack for all phase runs")
     fs_run_all_cmd.add_argument("--provider", default=None, help="Override agent provider for all phase runs")
     fs_run_all_cmd.add_argument(
         "--continue-on-failure",
@@ -231,6 +277,25 @@ def main() -> None:
 
     fs_status_cmd = sub.add_parser("fullstack-status", help="Show fullstack project status summary")
     fs_status_cmd.add_argument("project_id")
+
+    fs_reconcile_cmd = sub.add_parser("fullstack-reconcile", help="Reconcile an externally managed phase result")
+    fs_reconcile_cmd.add_argument("project_id")
+    fs_reconcile_cmd.add_argument("phase_id")
+    fs_reconcile_cmd.add_argument("state", choices=["pending", "ready", "in_progress", "done", "failed"])
+    fs_reconcile_cmd.add_argument("--summary", default=None, help="Optional reconciliation summary")
+    fs_reconcile_cmd.add_argument("--external-run-id", default=None, help="Optional external run identifier")
+
+    autofix_config_cmd = sub.add_parser("autofix-config", help="Resolve stack/provider settings for autofix")
+    autofix_config_cmd.add_argument("--stack", default=None, help="Override orchestration stack")
+    autofix_config_cmd.add_argument("--provider", default=None, help="Override agent provider")
+
+    autofix_dispatch_cmd = sub.add_parser("autofix-dispatch", help="Hand off an autofix task to the configured adapter")
+    autofix_dispatch_cmd.add_argument("--repo", required=True, help="GitHub repo, e.g. org/project")
+    autofix_dispatch_cmd.add_argument("--workflow", required=True, help="Workflow name, e.g. CI")
+    autofix_dispatch_cmd.add_argument("--head-branch", required=True, help="Workflow head branch")
+    autofix_dispatch_cmd.add_argument("--run-url", required=True, help="Workflow run URL")
+    autofix_dispatch_cmd.add_argument("--stack", default=None, help="Override orchestration stack")
+    autofix_dispatch_cmd.add_argument("--provider", default=None, help="Override agent provider")
 
     args = parser.parse_args()
 
@@ -270,6 +335,7 @@ def main() -> None:
             phase_id=args.phase_id,
             model=args.model,
             provider=args.provider,
+            stack=args.stack,
             dry_run=args.dry_run,
             skill=args.skill,
         )
@@ -278,11 +344,31 @@ def main() -> None:
             project_id=args.project_id,
             model=args.model,
             provider=args.provider,
+            stack=args.stack,
             continue_on_failure=args.continue_on_failure,
             skill=args.skill,
         )
     elif args.command == "fullstack-status":
         fullstack_status(project_id=args.project_id)
+    elif args.command == "fullstack-reconcile":
+        fullstack_reconcile(
+            project_id=args.project_id,
+            phase_id=args.phase_id,
+            state=args.state,
+            summary=args.summary,
+            external_run_id=args.external_run_id,
+        )
+    elif args.command == "autofix-config":
+        autofix_config(stack=args.stack, provider=args.provider)
+    elif args.command == "autofix-dispatch":
+        autofix_dispatch(
+            repo=args.repo,
+            workflow=args.workflow,
+            head_branch=args.head_branch,
+            run_url=args.run_url,
+            stack=args.stack,
+            provider=args.provider,
+        )
 
 
 if __name__ == "__main__":

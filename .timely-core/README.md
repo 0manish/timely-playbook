@@ -1,11 +1,11 @@
 # Timely Playbook
 
 Timely Playbook is a repository template for orchestrated, agent-ready projects.
-It ships with Codex as the default execution path, but the orchestrator, CI
-hooks, and governance model are provider-pluggable. It also integrates Context
-Hub so operators and agents can pull current repo docs and public API docs from
-the same local surface, and it now ships CXDB plus LEANN as the default
-project-local context plane.
+It ships with `codex_symphony` as the default orchestration stack, while the
+orchestrator, CI hooks, and governance model remain provider-pluggable and
+stack-pluggable. It also integrates Context Hub so operators and agents can
+pull current repo docs and public API docs from the same local surface, and it
+now ships CXDB plus LEANN as the default project-local context plane.
 
 ## Quick start
 
@@ -102,10 +102,24 @@ does not run silently in the background. Use `bash .timely-playbook/bin/chub.sh
 `bash .timely-playbook/bin/chub-mcp.sh` to start the MCP server; those wrappers
 regenerate the Timely mirror and build `.chub/` automatically when invoked.
 
-Full-stack runs default to the `codex` provider. To use another agent CLI,
-define it in `.timely-playbook/local/.orchestrator/fullstack-agent.json` and
-pass `--provider <name>` to `python .timely-playbook/bin/orchestrator.py
-fullstack-run` or `fullstack-run-all`.
+Full-stack runs default to the `codex_symphony` stack. To use another stack,
+set `default_stack` in `.timely-playbook/local/.orchestrator/fullstack-agent.json`
+or pass `--stack <name>` to `python .timely-playbook/bin/orchestrator.py
+fullstack-run` or `fullstack-run-all`. To change only the execution engine,
+define a provider in the same config file and pass `--provider <name>`. If
+`adapters.symphony.submit_command` is configured, Timely hands work to an
+external Symphony service; if it is left empty, Timely falls back to local
+provider execution so the default seed remains runnable. The shipped config also
+includes documented example stacks for Claude and open-source agents.
+To get a ready-made Symphony handoff starting point, use the shipped wrapper at
+`.timely-playbook/bin/symphony-submit.sh` and copy the `sample_submit_command`
+from `.timely-playbook/local/.orchestrator/fullstack-agent.json` into
+`adapters.symphony.submit_command`.
+The Claude and open-source example providers follow the same pattern via
+`.timely-playbook/bin/claude-code-example.sh` and
+`.timely-playbook/bin/open-source-agent-example.sh`; copy each provider's
+`sample_exec_command` into `exec_command` and set the corresponding environment
+variable.
 
 The generated repo launcher builds from `.timely-core/` when Go is available,
 and falls back to an installed `timely-playbook` binary only when Go is not
